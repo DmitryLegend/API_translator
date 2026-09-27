@@ -106,7 +106,10 @@ fun fitSize(minSize: Float, maxSize: Float, maxHeight: Float, heightOf: (Float) 
  */
 fun ringPoints(left: Int, top: Int, right: Int, bottom: Int, band: Int): IntArray {
     val out = ArrayList<Int>((right - left + 1 + bottom - top + 1) * band * 2)
-    for (i in 0..band) {
+    // Полосы берём строго снаружи, начиная с i = 1. При i = 0 точки лёгли бы
+    // прямо на границу рамки, а там уже сами буквы, и медиана посчитала бы
+    // цвет текста вместо цвета фона.
+    for (i in 1..band) {
         for (x in left..right) {
             out.add(x); out.add(top - i)      // тонкая полоска прямо над рамкой
             out.add(x); out.add(bottom + i)   // и прямо под ней

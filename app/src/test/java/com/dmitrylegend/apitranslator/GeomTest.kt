@@ -31,15 +31,17 @@ class GeomTest {
         // По экрану: x 10..60, y 20..30. После поворота на бок эта полоска
         // лежит вертикально: по картинке её x меняется местами с y, а
         // «верх экрана» уезжает к правому краю картинки.
-        assertEquals("ширина", 11, b[2] - b[0])
-        assertEquals("высота", 51, b[3] - b[1])
+        // Ширину и высоту считаем как «право минус лево», то есть без
+        // прибавления единицы: это длина отрезка, а не число пикселей.
+        assertEquals("ширина", 10, b[2] - b[0])
+        assertEquals("высота", 50, b[3] - b[1])
     }
 
     @Test
     fun поворот_на_270_градусов() {
         val b = toBufferBox(left = 10, top = 20, right = 60, bottom = 30, deg = ROT_270, bw = 200, bh = 400)
-        assertEquals("ширина", 11, b[2] - b[0])
-        assertEquals("высота", 51, b[3] - b[1])
+        assertEquals("ширина", 10, b[2] - b[0])
+        assertEquals("высота", 50, b[3] - b[1])
     }
 
     @Test
@@ -69,7 +71,7 @@ class GeomTest {
         val lineHeight: (Float) -> Float = { size -> size }
 
         // В высоту 40 влезает шрифт 40 и всё, что меньше.
-        assertEquals(30f, fitSize(6f, 100f, 40f, lineHeight), 0.5f)
+        assertEquals(40f, fitSize(6f, 100f, 40f, lineHeight), 0.5f)
         // Если влезает даже максимум — не ужимаем.
         assertEquals(100f, fitSize(6f, 100f, 500f, lineHeight), 0.5f)
         // Если не влезает даже минимум — рисуем в обрез, но показываем хоть что-то.

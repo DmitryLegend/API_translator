@@ -25,19 +25,6 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      # Разовый шаг: печатаем точные сигнатуры из android.jar, который сам
-      # раннер и подтянул. Нужен, чтобы не угадывать параметры методов
-      # Android по памяти. После того как всё собралось, шаг можно убрать.
-      - name: Сигнатуры Android SDK
-        run: |
-          {
-            echo "=== MediaProjection ==="
-            javap -classpath "$ANDROID_HOME/platforms/android-36/android.jar" android.media.projection.MediaProjection
-            echo "=== DisplayManager ==="
-            javap -classpath "$ANDROID_HOME/platforms/android-36/android.jar" android.hardware.display.DisplayManager
-          } > sdk.txt 2>&1 || true
-          grep -i -A2 virtualdisplay sdk.txt
-
       - name: Unit tests and debug build
         id: build
         # continue-on-error нужен, чтобы дойти до шага с отчётом: без него шаг
@@ -62,14 +49,27 @@ jobs:
             // заранее, как именно отформатирует ошибку та или другая версия
             // Gradle, а 6000 символов заведомо влезают в комментарий.
             const body = log.slice(-12000).slice(0, 60000)
-            const sdk = fs.existsSync('sdk.txt') ? fs.readFileSync('sdk.txt', 'utf8').slice(0, 4000) : ''
+            // Подробности упавших тестов лежат не в консоли Gradle, а в
+            // XML-отчёте JUnit. Достаём оттуда тексты падений.
+            const dir = 'app/build/test-results/testDebugUnitTest'
+            let tests = '(отчёта нет)'
+            if (fs.existsSync(dir)) {
+              const parts = []
+              for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.xml'))) {
+                const xml = fs.readFileSync(dir + '/' + f, 'utf8')
+                for (const m of xml.matchAll(/<failure[\s\S]*?<\/failure>/g)) {
+                  parts.push(f + ':\n' + m[0].replace(/<[^>]+>/g, ' ').replace(/&#10;/g, '\n').trim().slice(0, 900))
+                }
+              }
+              tests = parts.length ? parts.join('\n\n') : '(падений в отчёте нет)'
+            }
             // Комментарий именно к коммиту, а не к задаче: событие у нас
             // push, и context.issue там не существует.
             await github.rest.repos.createCommitComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               commit_sha: context.sha,
-              body: '### Сборка упала\n\n```\n' + body + '\n```\n\n### Сигнатуры SDK\n\n```\n' + sdk + '\n```'
+              body: '### Сборка упала\n\n```\n' + body + '\n```\n\n### Тесты\n\n```\n' + tests.slice(0, 20000) + '\n```'
             })
 
       - uses: actions/upload-artifact@v4
