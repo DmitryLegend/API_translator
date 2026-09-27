@@ -59,6 +59,15 @@ class TranslateService : Service() {
 
         private const val TAG = "Translator"
 
+        /** На какой язык переводим. */
+        const val TARGET_LANG = "RU"
+
+        const val NOTIFICATION_ID = 1
+        const val CHANNEL_ID = "translator"
+        const val VIRTUAL_DISPLAY = "translator"
+        const val CONNECT_TIMEOUT_MS = 10_000
+        const val READ_TIMEOUT_MS = 15_000
+
         /**
          * Пауза между кадрами. Распознавание занимает 200–400 мс, сеть ещё
          * 300–600 мс, так что быстрее полутора кадров в секунду всё равно не
@@ -496,14 +505,5 @@ class TranslateService : Service() {
         }
         view = null
         super.onDestroy()
-    }
-
-    private companion object {
-        const val TARGET_LANG = "RU"
-        const val NOTIFICATION_ID = 1
-        const val CHANNEL_ID = "translator"
-        const val VIRTUAL_DISPLAY = "translator"
-        const val CONNECT_TIMEOUT_MS = 10_000
-        const val READ_TIMEOUT_MS = 15_000
     }
 }

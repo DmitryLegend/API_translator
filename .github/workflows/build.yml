@@ -22,7 +22,18 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Unit tests and debug build
-        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
+        # Сводка падает в «Итоги» экшена, а не остаётся только в логах:
+        # так ошибку видно прямо на странице сборки, без скачивания логов.
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon testDebugUnitTest assembleDebug 2>&1 | tee build.log || {
+            echo '### Сборка упала, хвост лога' >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            grep -nE "^e: |error:|FAILURE|Execution failed|Caused by|Compilation error|> Task .* FAILED" build.log | tail -n 80 >> "$GITHUB_STEP_SUMMARY" || tail -n 80 build.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          }
+          echo '### Сборка прошла' >> "$GITHUB_STEP_SUMMARY"
         env:
           DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
 

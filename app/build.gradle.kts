@@ -75,14 +75,15 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+}
 
-    // Kotlin и Java обязаны собираться под одну и ту же версию, иначе сборка
-    // падает с ошибкой про дублирующиеся данные классов. Импорт JvmTarget
-    // в начале файла обязателен для этого блока.
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_17)
-        }
+// Kotlin и Java обязаны собираться под одну и ту же версию, иначе сборка
+// падает с ошибкой про дублирующиеся данные классов. Этот блок стоит
+// отдельно от android { }, потому что kotlin — это другое расширение, и
+// внутри android оно не видно. Импорт JvmTarget в начале файла обязателен.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
