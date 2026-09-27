@@ -95,9 +95,13 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq squashfs-tools
           # Готовый runtime AppImage: маленькая программа, которая умеет
-          # примонтировать squashfs-образ и запустить из него AppRun.
+          # примонтировать squashfs-образ и запустить из него AppRun. Раньше он
+          # лежал у appimagetool, и та ветка репозитория больше не отвечает,
+          # поэтому берём из type2-runtime — это его новое место. Версию
+          # зафиксировали датой, а не словом continuous, иначе завтрашняя
+          # сборка не повторит сегодняшнюю.
           curl -fsSL -o /tmp/runtime \
-            https://github.com/continuousintegration/appimagetool/releases/download/continuous/runtime-x86_64
+            https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
           rm -rf AppDir
           mkdir -p AppDir/usr/bin AppDir/usr/share/applications
           cp dist/podstrochnik AppDir/usr/bin/
