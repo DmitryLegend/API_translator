@@ -3,6 +3,8 @@ name: Build APK
 on:
   push:
     branches: [main]
+    # Тег вида v1.0.0 собирает подписанный APK и выкладывает его в Releases.
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -14,6 +16,8 @@ permissions:
 
 jobs:
   apk:
+    # На теге работает задача release, debug ей не нужен.
+    if: "!startsWith(github.ref, 'refs/tags/')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -77,4 +81,60 @@ jobs:
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  # Релиз собирается только по тегу. Обычный пуш в main даёт debug-сборку для
+  # быстрой проверки, а «официальный» файл появляется на странице Releases
+  # репозитория — оттуда его и качают.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Тесты и подписанная сборка
+        run: ./gradlew --no-daemon testReleaseUnitTest assembleRelease
+        env:
+          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+
+      - name: Выложить на страницу Releases
+        env:
+          # Токен самого workflow, он умеет ровно то, что разрешено в
+          # permissions выше: записать содержимое репозитория.
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          tag="${GITHUB_REF_NAME}"
+          apk=app/build/outputs/apk/release/app-release.apk
+          # Исходники GitHub прикладывает к релизу сам, отдельным пунктом
+          # «Source code» — дублировать их архивом здесь незачем.
+          #
+          # При повторном запуске по тому же тегу релиза уже существует, и
+          # create упал бы. Поэтому сперва пробуем обновить, и только если
+          # релиза ещё нет — создаём.
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$apk" --clobber
+          else
+            gh release create "$tag" "$apk" \
+              --title "Подстрочник $tag" \
+              --notes "Подписанная сборка для установки на телефон." \
+              --generate-notes
+          fi
+          echo "APK: $(du -h "$apk" | cut -f1)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error

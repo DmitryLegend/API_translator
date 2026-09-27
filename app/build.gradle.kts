@@ -1,4 +1,6 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.io.File
+import java.util.Base64
 
 plugins {
     id("com.android.application")
@@ -29,6 +31,34 @@ if (providers.environmentVariable("CI").isPresent && deeplKey.isBlank()) {
     )
 }
 
+// Подпись релиза. Ключ лежит в секретах репозитория, в репозиторий он не
+// попадает никогда: без него никто не сможет выпустить обновление от вашего
+// имени, даже если просто скачает APK.
+//
+// Gradle не умеет читать хранилище ключей прямо из строки, поэтому base64 из
+// секрета сначала кладём во временный файл, а сам файл в сборку не копируем.
+val ksB64 = providers.environmentVariable("RELEASE_KEYSTORE_BASE64").orNull
+val ksPass = providers.environmentVariable("RELEASE_KEYSTORE_PASSWORD").orNull
+val ksAlias = providers.environmentVariable("RELEASE_KEY_ALIAS").orNull
+val keyPass = providers.environmentVariable("RELEASE_KEY_PASSWORD").orNull
+val signed = listOf(ksB64, ksPass, ksAlias, keyPass).none { it.isNullOrBlank() }
+
+if (providers.environmentVariable("CI").isPresent && !signed) {
+    error(
+        "Секреты подписи не найдены: RELEASE_KEYSTORE_BASE64, " +
+            "RELEASE_KEYSTORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD. " +
+            "Без них релизный APK вышел бы неподписанным, и Android его не поставил бы."
+    )
+}
+
+val keystore = if (signed) {
+    val f = File(System.getProperty("java.io.tmpdir"), "release-keystore.p12")
+    f.writeBytes(Base64.getDecoder().decode(ksB64))
+    f
+} else {
+    null
+}
+
 android {
     namespace = "com.dmitrylegend.apitranslator"
 
@@ -49,7 +79,7 @@ android {
         targetSdk = 35
 
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
 
         // Экранируем кавычки, потому что значение вставляется внутрь
         // сгенерированной Java-строки.
@@ -62,11 +92,31 @@ android {
         buildConfig = true
     }
 
+    signingConfigs {
+        if (signed) {
+            create("release") {
+                storeFile = keystore
+                storePassword = ksPass
+                keyAlias = ksAlias
+                keyPassword = keyPass
+                storeType = "PKCS12"
+            }
+        }
+    }
+
     buildTypes {
         release {
+            // Подпись общая на все релизы, поэтому следующая версия ставится
+            // поверх предыдущей, а не требует удаления.
+            if (signed) signingConfig = signingConfigs.getByName("release")
+
             // Без ужимания и обфускации: в приложении нет лишнего веса, который
             // стоило бы выкидывать, а библиотеки Google изнутри используют
             // рефлексию и с ней не уживаются.
+            //
+            // ponytail: флаг можно включить одной строкой, но тогда размер APK
+            // падает примерно вдвое, а поведение на телефоне меняется. Включать
+            // стоит, только если размер стал важнее предсказуемости.
             isMinifyEnabled = false
         }
     }
