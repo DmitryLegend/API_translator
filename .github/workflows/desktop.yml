@@ -1,0 +1,139 @@
+name: Сборка для компьютера
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - desktop/**
+      - .github/workflows/desktop.yml
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # Один образ Linux на оба формата. AppImage собирается вручную из AppDir:
+  # appimagetool требует FUSE, которого в контейнере нет, а squashfs не
+  # требует ничего.
+  linux:
+    name: Linux (.deb и .AppImage)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: desktop/requirements.txt
+
+      - name: Поставить зависимости
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r desktop/requirements.txt pyinstaller
+
+      - name: Проверить логику строк
+        run: python desktop/test_lines.py
+
+      - name: Собрать
+        run: |
+          pyinstaller --onefile --noconfirm --clean \
+            --name podstrochnik \
+            --distpath dist --workpath build desktop/podstrochnik.py
+          ls -lh dist/podstrochnik
+
+      - name: Собрать .deb
+        run: |
+          curl -fsSL https://nfpm.goreleaser.com/static/nfpm-linux-amd64 \
+            -o /usr/local/bin/nfpm
+          chmod +x /usr/local/bin/nfpm
+          nfpm package --packager deb --config desktop/nfpm.yaml --target dist/podstrochnik_amd64.deb
+
+      - name: Собрать .AppImage
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq squashfs-tools
+          # Готовый runtime AppImage: маленькая программа, которая умеет
+          # примонтировать squashfs-образ и запустить из него AppRun.
+          curl -fsSL -o /tmp/runtime \
+            https://github.com/continuousintegration/appimagetool/releases/download/continuous/runtime-x86_64
+          rm -rf AppDir
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications
+          cp dist/podstrochnik AppDir/usr/bin/
+          cp desktop/podstrochnik.desktop AppDir/usr/share/applications/
+          # AppRun — это просто AppDir/AppRun, а не он сам, так как стандарт
+          # требует, чтобы он был первым и чтобы находился в корне.
+          printf '#!/bin/sh\nHERE="$(dirname "$(readlink -f "$0")")"\nexec "$HERE/usr/bin/podstrochnik" "$@"\n' > AppDir/AppRun
+          chmod +x AppDir/AppRun
+          mksquashfs AppDir /tmp/podstrochnik.squashfs -root-owned -noappend -quiet
+          cp /tmp/runtime dist/podstrochnik-x86_64.AppImage
+          cat /tmp/podstrochnik.squashfs >> dist/podstrochnik-x86_64.AppImage
+          chmod +x dist/podstrochnik-x86_64.AppImage
+
+      - name: Приложить к релизу
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          for f in dist/podstrochnik_amd64.deb dist/podstrochnik-x86_64.AppImage; do
+            gh release upload "$tag" "$f" --clobber || gh release create "$tag" "$f" \
+              --title "Подстрочник $tag" --notes "Сборка для компьютера."
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: podstrochnik-linux
+          path: |
+            dist/podstrochnik_amd64.deb
+            dist/podstrochnik-x86_64.AppImage
+          if-no-files-found: error
+
+  # Windows 10 и 11. Один и тот же exe, разницы между ними для нашей задачи
+  # нет: PyInstaller сам собирает под минимальную версию, какую умеет.
+  windows:
+    name: Windows 10 и 11 (.exe)
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: desktop/requirements.txt
+
+      - name: Поставить зависимости
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r desktop/requirements.txt pyinstaller
+
+      - name: Собрать
+        run: pyinstaller --onefile --noconfirm --clean --name podstrochnik --distpath dist --workpath build desktop/podstrochnik.py
+
+      # Подписи нет: сертификат нужно покупать, и без него Windows всё равно
+      # спросит подтверждение, но SmartScreen не придерётся. Пока сборка
+      # честно помечена как неподписанная, чтобы это не было сюрпризом.
+      - name: Упаковать в zip
+        run: |
+          7z a -bso0 -bsp0 dist\podstrochnik-win-x64.zip dist\podstrochnik.exe
+
+      - name: Приложить к релизу
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${env:GITHUB_REF_NAME}"
+          for f in dist\podstrochnik-win-x64.zip dist\podstrochnik.exe; do
+            gh release upload $tag $f --clobber || gh release create $tag $f `
+              --title "Подстрочник $tag" --notes "Сборка для компьютера."
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: podstrochnik-windows
+          path: |
+            dist/podstrochnik-win-x64.zip
+            dist/podstrochnik.exe
+          if-no-files-found: error

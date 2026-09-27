@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Подстрочник
+Name[en]=Podstrochnik
+Comment=Перевод того, что сейчас на экране
+Exec=podstrochnik
+Icon=podstrochnik
+Terminal=false
+Categories=Utility;
