@@ -112,10 +112,7 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
 
       - name: Тесты и подписанная сборка
-        # bundleRelease обязателен для Play: новое приложение туда нельзя
-        # загрузить apk, принимают только .aab. Собираем оба — apk для
-        # обычной установки руками, aab для магазина.
-        run: ./gradlew --no-daemon testReleaseUnitTest assembleRelease bundleRelease
+        run: ./gradlew --no-daemon testReleaseUnitTest assembleRelease
         env:
           DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
@@ -124,17 +121,14 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
 
       - name: Проверить то, на что смотрит Google Play
-        # С 31 августа 2026 года Play не принимает сборку с targetSdk ниже 36,
-        # а для новых приложений принимает только .aab. Обе проверки дешевле
-        # одного ручного взгляда в манифест, поэтому пусть о них говорит
-        # сама сборка.
+        # targetSdk ниже 36 Android с 31 августа 2026 года Play не принимает.
+        # Проверка дешевле ручного взгляда в манифест, поэтому пусть о ней
+        # говорит сама сборка.
         run: |
           set -e
           aapt2=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | tail -1)
           "$aapt2" dump badging app/build/outputs/apk/release/app-release.apk \
             | grep -E '^package:|^sdkVersion:|^targetSdkVersion:'
-          test -f app/build/outputs/bundle/release/app-release.aab
-          echo "aab на месте"
 
       - name: Выложить на страницу Releases
         env:
@@ -145,9 +139,6 @@ jobs:
           set -e
           tag="${GITHUB_REF_NAME}"
           apk=app/build/outputs/apk/release/app-release.apk
-          # Google Play принимает для новых приложений только .aab, apk туда
-          # не загрузить. Лежит рядом, чтобы было что взять при публикации.
-          aab=app/build/outputs/bundle/release/app-release.aab
 
           # Ищем блок подписи прямо в файле. Подпись v1 клала бы рядом
           # META-INF/*.SF, но при minSdk 26 она по умолчанию выключена, и там
@@ -167,9 +158,9 @@ jobs:
             'Исходники — пункт **Source code** рядом с этим списком, GitHub прикладывает их к каждому релизу сам.\n')
 
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" "$apk" "$aab" --clobber
+            gh release upload "$tag" "$apk" --clobber
           else
-            gh release create "$tag" "$apk" "$aab" \
+            gh release create "$tag" "$apk" \
               --title "Подстрочник $tag" \
               --notes "$notes"
           fi
