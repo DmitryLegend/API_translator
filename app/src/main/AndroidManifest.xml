@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Обращения к DeepL. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Фоновая работа. Начиная с Android 14 для типа «захват экрана»
+         обязательно нужно отдельное разрешение, без него Android выбросит
+         ошибку при запуске. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+
+    <!-- С Android 13 уведомления спрашиваются отдельно. Без этого разрешения
+         работа в фоне всё равно идёт, но уведомление не показывается, и
+         кажется, что приложение зависло. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Рисовать перевод поверх других приложений. Без этого Android не даст
+         показать прозрачное окно, и пользователь должен разрешить это руками
+         в настройках системы. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <application
+        android:allowBackup="false"
+        android:label="API_translator"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.Material.Light.DarkActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- foregroundServiceType обязателен: без него файл описания не
+             соберётся. Тип должен совпадать с тем, что передаётся в
+             startForeground() внутри сервиса.
+
+             stopWithTask=false — чтобы смахивание приложения из списка
+             задач не оставляло включённым захват экрана. -->
+        <service
+            android:name=".TranslateService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection"
+            android:stopWithTask="false" />
+    </application>
+</manifest>
