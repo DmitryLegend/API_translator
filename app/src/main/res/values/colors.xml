@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Цвета иконки. Тёмно-синий — потому что приложение часто висит поверх
+      видео, и иконка не должна сливаться с пёстрым фоном.
+    -->
+    <color name="ic_launcher_background">#1B2340</color>
+    <color name="ic_launcher_text">#FFFFFF</color>
+    <color name="ic_launcher_accent">#5FD08A</color>
+</resources>

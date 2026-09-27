@@ -9,8 +9,10 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.PixelFormat
+import android.graphics.Point
 import android.graphics.Rect
 import android.hardware.display.DisplayManager
+import android.hardware.display.VirtualDisplay
 import android.media.Image
 import android.media.ImageReader
 import android.media.projection.MediaProjection
@@ -54,8 +56,9 @@ class TranslateService : Service() {
     companion object {
         const val EXTRA_RESULT_CODE = "resultCode"
         const val EXTRA_RESULT_DATA = "resultData"
-        const val EXTRA_WIDTH = "width"
-        const val EXTRA_HEIGHT = "height"
+
+        /** Плотность виртуального экрана. На картинку не влияет вообще. */
+        private const val DPI = 100
 
         private const val TAG = "Translator"
 
@@ -114,7 +117,7 @@ class TranslateService : Service() {
          * слегка «дрожит». Без этой проверки одна фраза улетела бы в API три-четыре
          * раза подряд, а на экране вместо перевода мерцал бы оригинал.
          *
-         * Заодно это главная экономия лимита: 1 000 000 символов в месяц — не
+         * Заодно это главная экономия лимита: 500 000 символов в месяц — не
          * бездонно.
          *
          * Трёх кадров, а не двух, по опыту: мусор от сжатого видео держится
@@ -199,6 +202,16 @@ class TranslateService : Service() {
     private lateinit var recognizer: com.google.mlkit.vision.text.TextRecognizer
     private var reader: ImageReader? = null
     private var projection: MediaProjection? = null
+
+    /** Захват экрана, который мы держим. Пересоздаётся при повороте. */
+    private var virtual: VirtualDisplay? = null
+
+    /** Размер последнего созданного захвата. */
+    private var capW = 0
+    private var capH = 0
+
+    /** Как был повёрнут экран в момент, когда создан последний захват. */
+    private var capDeg = ROT_0
     // Тип именно OverlayView, а не View: ниже мы вызываем его собственный
     // метод setItems, которого у обычного View нет.
     private var view: OverlayView? = null
@@ -243,9 +256,7 @@ class TranslateService : Service() {
 
         val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, 0)
         val resultData = readResultData(intent)
-        val width = intent.getIntExtra(EXTRA_WIDTH, 0)
-        val height = intent.getIntExtra(EXTRA_HEIGHT, 0)
-        if (resultData == null || width <= 0 || height <= 0) {
+        if (resultData == null) {
             Log.e(TAG, "Запуск без разрешения на захват экрана — нечего делать")
             stopSelf()
             return START_NOT_STICKY
@@ -283,26 +294,18 @@ class TranslateService : Service() {
             }
         }, main)
 
-        // Снимаем экран в «родной» ориентации (вертикально), даже если телефон
-        // сейчас лежит на боку. Android сам развернёт картинку внутри буфера, а
-        // мы скажем распознавателю угол поворота — и получим рамки сразу в
-        // понятных координатах. Разбор этой разницы — в Geom.kt.
         // Формат кадра — RGBA_8888, хотя распознаватель из готового кадра
         // берёт только JPEG и YUV: путь через YUV_420_888 на этом телефоне
         // роняет процесс нативно, сигналом 6, мимо любого try. RGBA мы
         // переводим в Bitmap сами, см. toBitmap.
-        val imgReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
-
-        reader = imgReader
-        // В Android 15+ у createVirtualDisplay восемь параметров: после dpi идёт
-        // int flags, а поверхность идёт уже после него. Флаги AUTO_MIRROR и
-        // PRESENTATION — те же, что раньше были зашиты внутрь метода.
-        // ponytail: вызов рассчитан на API 35+ (телефон на Android 16). Для
-        // старых версий нужен обратный вызов через рефлексию — добавлять,
-        // только если приложение пойдёт на Android 14 и ниже.
-        val flags = DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR or
-            DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION
-        proj.createVirtualDisplay(VIRTUAL_DISPLAY, width, height, 100, flags, imgReader.surface, null, null)
+        //
+        // Сам захват создаёт ensureCapture() — он обязан следовать за
+        // размером экрана, а размер меняется при повороте телефона.
+        if (!ensureCapture()) {
+            Log.e(TAG, "Android не дал создать захват экрана")
+            stopSelf()
+            return START_NOT_STICKY
+        }
 
 
         recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
@@ -334,6 +337,9 @@ class TranslateService : Service() {
     private fun loop() {
         var frames = 0
         while (running) {
+            // Телефон могли повернуть — пересоздаём захват под новый размер.
+            if (!ensureCapture()) debug = "захват экрана не создаётся"
+
             val image = try {
                 reader?.acquireLatestImage()
             } catch (t: Throwable) {
@@ -367,7 +373,12 @@ class TranslateService : Service() {
     }
 
     private fun process(image: Image) {
-        val deg = rotationDegrees()
+        // Насколько картинка в буфере повёрнута относительно экрана. Почти
+        // всегда ноль: захват пересоздаётся под текущий размер, и буфер
+        // совпадает с экраном. Ненулевое значение бывает лишь в один-два кадра
+        // после поворота, пока пересоздание ещё не дошло. Разбор этой разницы —
+        // в Geom.kt.
+        val deg = ((rotationDegrees() - capDeg) % 360 + 360) % 360
 
         // Распознаватель ML Kit из кадра, взятого прямо с экрана, понимает
         // только JPEG и YUV. RGBA он берёт, только если сначала собрать из
@@ -669,6 +680,89 @@ class TranslateService : Service() {
      // попытка узнать это из фоновой работы (а не из окна приложения) на
      * Android 11+ заканчивается ошибкой.
      */
+    /**
+     * Захват экрана ровно по текущему размеру экрана.
+     *
+     * Раньше размер брался один раз — при нажатии кнопки — и буфер намертво
+     * запекался в него. Стоило повернуть телефон, и Android начинал впихивать
+     * альбомную картинку в портретный буфер, добавив по краям чёрные поля.
+     * Распознавание честно возвращало рамку для этой уменьшенной картинки, а
+     * оверлей рисовал по её координатам — то есть мимо настоящего экрана.
+     * Именно так перевод «наезжал» в горизонтальном положении.
+     *
+     * Теперь размер спрашивается каждый кадр, и при повороте захват
+     * пересоздаётся. Буфер совпадает с экраном один в один: ни полей, ни
+     * масштабирования, координаты рамок и координаты оверлея совпадают.
+     *
+     * Порядок важен: сначала создаём новый, и только потом закрываем старый.
+     * Иначе мигновение неудачи оставит нас вообще без картинки.
+     *
+     * В Android 15+ у createVirtualDisplay восемь параметров: после dpi идёт
+     * int flags, а поверхность идёт уже после него.
+     * ponytail: вызов рассчитан на API 35+ (телефон на Android 16). Для
+     * старых версий нужен обратный вызов через рефлексию — добавлять,
+     * только если приложение пойдёт на Android 14 и ниже.
+     */
+    private fun ensureCapture(): Boolean {
+        val proj = projection ?: return false
+        val size = screenSize() ?: return false
+        val deg = rotationDegrees()
+        if (reader != null && size.first == capW && size.second == capH && deg == capDeg) {
+            return true
+        }
+        val first = reader == null
+
+        val newReader = ImageReader.newInstance(size.first, size.second, PixelFormat.RGBA_8888, 2)
+        val flags = DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR or
+            DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION
+        val newVirtual = try {
+            proj.createVirtualDisplay(
+                VIRTUAL_DISPLAY, size.first, size.second, DPI, flags, newReader.surface, null, null,
+            )
+        } catch (t: Throwable) {
+            Log.w(TAG, "Захват не создался", t)
+            newReader.close()
+            return false
+        }
+
+        reader?.close()
+        virtual?.release()
+        reader = newReader
+        virtual = newVirtual
+        capW = size.first
+        capH = size.second
+        capDeg = deg
+
+        // Экран перевернулся или сменился размер — значит, всё найденное раньше
+        // лежит теперь в других координатах. Забываем это, иначе перевод
+        // на секунды зависнет в стороне от своего текста. На первом создании
+        // захвата трогать нечего: пусто и так.
+        if (!first) {
+            lines.clear()
+            shown = emptyList()
+        }
+
+        Log.i(TAG, "захват ${capW}x$capH, поворот $capDeg")
+        return true
+    }
+
+    /**
+     * Размер экрана в его нынешней ориентации — ровно те координаты, в которых
+     * рисует оверлей. С Android 30 это maximumWindowMetrics, раньше — getRealSize.
+     */
+    @Suppress("DEPRECATION")
+    private fun screenSize(): Pair<Int, Int>? {
+        val wm = getSystemService(WindowManager::class.java) ?: return null
+        return if (Build.VERSION.SDK_INT >= 30) {
+            val b = wm.maximumWindowMetrics.bounds
+            b.width() to b.height()
+        } else {
+            val p = Point()
+            wm.defaultDisplay.getRealSize(p)
+            p.x to p.y
+        }
+    }
+
     private fun rotationDegrees(): Int {
         val manager = getSystemService(DisplayManager::class.java) ?: return ROT_0
         val display = manager.getDisplay(Display.DEFAULT_DISPLAY) ?: return ROT_0
@@ -719,6 +813,8 @@ class TranslateService : Service() {
         running = false
         isRunning = false
         worker.shutdownNow()
+        virtual?.release()
+        virtual = null
         reader?.close()
         reader = null
         // Гасим именно в таком порядке: сначала перестаём читать кадры, потом

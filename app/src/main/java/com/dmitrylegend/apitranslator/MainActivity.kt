@@ -9,7 +9,6 @@ import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.graphics.Point
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -233,35 +232,18 @@ class MainActivity : Activity() {
             return
         }
 
-        val (width, height) = screenSize()
+        // Размер экрана сюда намеренно не передаём. Раньше он был зашит сюда
+        // один раз, и буфер захвата намертво запекался в него: стоило повернуть
+        // телефон — и перевод наезжал мимо текста. Теперь TranslateService
+        // спрашивает размер у экрана сам и пересоздаёт захват при повороте.
         startForegroundService(
             Intent(this, TranslateService::class.java).apply {
                 putExtra(TranslateService.EXTRA_RESULT_CODE, resultCode)
                 putExtra(TranslateService.EXTRA_RESULT_DATA, data)
-                putExtra(TranslateService.EXTRA_WIDTH, width)
-                putExtra(TranslateService.EXTRA_HEIGHT, height)
             }
         )
         refresh()
     }
-
-    /**
-     * Размер экрана, в котором рисует оверлей.
-     *
-     * С Android 30 это делается одним способом, раньше — другим. Берём «родную»
-     * (вертикальную) ориентацию: снимать будем в ней, а поворот обработает
-     * TranslateService (см. Geom.kt).
-     */
-    @Suppress("DEPRECATION")
-    private fun screenSize(): Pair<Int, Int> =
-        if (Build.VERSION.SDK_INT >= 30) {
-            val b = windowManager.maximumWindowMetrics.bounds
-            b.width() to b.height()
-        } else {
-            val p = Point()
-            windowManager.defaultDisplay.getRealSize(p)
-            p.x to p.y
-        }
 
     private fun dp(value: Int): Int = TypedValue.applyDimension(
         TypedValue.COMPLEX_UNIT_DIP,

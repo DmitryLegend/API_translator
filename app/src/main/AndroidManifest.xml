@@ -22,7 +22,8 @@
 
     <application
         android:allowBackup="false"
-        android:label="API_translator"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.DarkActionBar">
 
