@@ -51,11 +51,44 @@ jobs:
           ls -lh dist/podstrochnik
 
       - name: Собрать .deb
+        # Пакет .deb — это просто архив ar с тремя файлами внутри: метка
+        # формата, список файлов пакета и сами файлы. Раньше для этого тянули
+        # nfpm, но все его ссылки разом отдали 404, а своя сборка — это
+        # ar и tar, которые на раннере уже есть.
         run: |
-          curl -fsSL https://nfpm.goreleaser.com/static/nfpm-linux-amd64 \
-            -o /usr/local/bin/nfpm
-          chmod +x /usr/local/bin/nfpm
-          nfpm package --packager deb --config desktop/nfpm.yaml --target dist/podstrochnik_amd64.deb
+          set -e
+          rm -rf pkg
+          mkdir -p pkg/DEBIAN pkg/usr/bin pkg/usr/share/applications
+          cp dist/podstrochnik pkg/usr/bin/podstrochnik
+          cp desktop/podstrochnik.desktop pkg/usr/share/applications/
+
+          size=$(du -sk pkg | cut -f1)
+          cat > pkg/DEBIAN/control <<EOF
+          Package: podstrochnik
+          Version: 1.0.1
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Maintainer: DmitryLegend <dmitrylegend@users.noreply.github.com>
+          Installed-Size: $size
+          Depends: libgl1, libglib2.0-0, libxkbcommon0, libxcb-cursor0, libxcb-icccm4, libxcb-keysyms1, libxcb-shape0, libdbus-1-3
+          Description: Перевод того, что сейчас на экране компьютера
+           Захватывает экран, распознаёт текст и рисует перевод поверх.
+          EOF
+
+          # Метка формата обязана быть ровно такой, иначе dpkg откажется
+          # ставить пакет. И лежит она не в pkg, а рядом с архивом: внутри
+          # ar имя файла пишется как есть, и «pkg/debian-binary» dpkg
+          # не признает.
+          printf '2.0\n' > debian-binary
+          # В control.tar.gz файл должен лежать прямо в корне, а не в
+          # DEBIAN/: этот каталог нужен только как исходная раскладка,
+          # и dpkg ругается на пакет, если его там не найдёт.
+          tar czf control.tar.gz -C pkg/DEBIAN control
+          tar czf data.tar.gz -C pkg usr
+          ar rc dist/podstrochnik_amd64.deb debian-binary control.tar.gz data.tar.gz
+          rm -f control.tar.gz data.tar.gz debian-binary
+          dpkg-deb --info dist/podstrochnik_amd64.deb | head -5 || true
 
       - name: Собрать .AppImage
         run: |
