@@ -397,15 +397,17 @@ class TranslateService : Service() {
         val yPlane = image.planes[0]
         val uPlane = image.planes[1]
         val vPlane = image.planes[2]
+        val fullW = image.width
+        val fullH = image.height
 
         val samples = ArrayList<Int>(ring.size / 2)
         var i = 0
         while (i < ring.size) {
             val x = ring[i]
             val y = ring[i + 1]
-            val luma = yPlane.at(x, y)
-            val cb = uPlane.at(x / 2, y / 2)
-            val cr = vPlane.at(x / 2, y / 2)
+            val luma = yPlane.at(x, y, fullW, fullH)
+            val cb = uPlane.at(x / 2, y / 2, fullW / 2, fullH / 2)
+            val cr = vPlane.at(x / 2, y / 2, fullW / 2, fullH / 2)
             if (luma != null && cb != null && cr != null) {
                 // Пересчёт YUV -> RGB по BT.601. Значения вне 0..255 обрезаем:
                 // у краёв кадра формула даёт выбросы, а нам нужен цвет фона,
@@ -422,9 +424,15 @@ class TranslateService : Service() {
         return medianColor(samples.toIntArray())
     }
 
-    /** Один байт из плоскости кадра либо null, если точка за её краем. */
-    private fun Image.Plane.at(x: Int, y: Int): Int? {
-        if (x < 0 || y < 0 || x >= width || y >= height) return null
+    /**
+     * Один байт из плоскости кадра либо null, если точка за её краем.
+     *
+     * Размеры плоскости передаём сами: у `Image.Plane` в публичном Android SDK
+     * нет ни `width`, ни `height`, они скрыты, а гадать по буферу нельзя —
+     * в конце кадра бывает выравнивание, и последняя строка короче.
+     */
+    private fun Image.Plane.at(x: Int, y: Int, w: Int, h: Int): Int? {
+        if (x < 0 || y < 0 || x >= w || y >= h) return null
         val offset = y * rowStride + x * pixelStride
         if (offset >= buffer.limit()) return null
         return buffer.get(offset).toInt() and 0xFF
