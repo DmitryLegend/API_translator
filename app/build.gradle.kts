@@ -43,13 +43,10 @@ val ksAlias = providers.environmentVariable("RELEASE_KEY_ALIAS").orNull
 val keyPass = providers.environmentVariable("RELEASE_KEY_PASSWORD").orNull
 val signed = listOf(ksB64, ksPass, ksAlias, keyPass).none { it.isNullOrBlank() }
 
-if (providers.environmentVariable("CI").isPresent && !signed) {
-    error(
-        "Секреты подписи не найдены: RELEASE_KEYSTORE_BASE64, " +
-            "RELEASE_KEYSTORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD. " +
-            "Без них релизный APK вышел бы неподписанным, и Android его не поставил бы."
-    )
-}
+// Требовать секреты здесь нельзя: этот файл читается при любой сборке, в том
+// числе черновой, которой подпись не нужна. Забытые секреты ловит сам
+// релизный шаг в .github/workflows/build.yml — там проверяется и наличие
+// секретов, и что готовый APK действительно подписан.
 
 val keystore = if (signed) {
     val f = File(System.getProperty("java.io.tmpdir"), "release-keystore.p12")

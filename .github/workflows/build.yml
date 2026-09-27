@@ -99,6 +99,18 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Проверить, что секреты подписи на месте
+        # Подпись нельзя пропускать: без неё Android просто не поставит файл,
+        # а узнать об этом можно только на телефоне. Ловим здесь.
+        run: |
+          if [ -z "$RELEASE_KEYSTORE_BASE64" ] || [ -z "$RELEASE_KEY_PASSWORD" ]; then
+            echo "::error::Нет секретов подписи релиза (RELEASE_KEYSTORE_BASE64, RELEASE_KEY_PASSWORD)"
+            exit 1
+          fi
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+
       - name: Тесты и подписанная сборка
         run: ./gradlew --no-daemon testReleaseUnitTest assembleRelease
         env:
@@ -123,6 +135,12 @@ jobs:
           # При повторном запуске по тому же тегу релиза уже существует, и
           # create упал бы. Поэтому сперва пробуем обновить, и только если
           # релиза ещё нет — создаём.
+          # Подпись v1 оставляет в APK файлы META-INF/*.SF. Их нет — значит
+          # сборка вышла неподписанной и телефон её не примет.
+          if ! unzip -l "$apk" | grep -q 'META-INF/.*\.\(SF\|RSA\)'; then
+            echo "::error::APK не подписан, публиковать нечего"
+            exit 1
+          fi
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" "$apk" --clobber
           else
