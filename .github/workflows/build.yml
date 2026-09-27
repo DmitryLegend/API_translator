@@ -123,6 +123,19 @@ jobs:
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
 
+      - name: Проверить то, на что смотрит Google Play
+        # С 31 августа 2026 года Play не принимает сборку с targetSdk ниже 36,
+        # а для новых приложений принимает только .aab. Обе проверки дешевле
+        # одного ручного взгляда в манифест, поэтому пусть о них говорит
+        # сама сборка.
+        run: |
+          set -e
+          aapt2=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | tail -1)
+          "$aapt2" dump badging app/build/outputs/apk/release/app-release.apk \
+            | grep -E '^package:|^sdkVersion:|^targetSdkVersion:'
+          test -f app/build/outputs/bundle/release/app-release.aab
+          echo "aab на месте"
+
       - name: Выложить на страницу Releases
         env:
           # Токен самого workflow, он умеет ровно то, что разрешено в
