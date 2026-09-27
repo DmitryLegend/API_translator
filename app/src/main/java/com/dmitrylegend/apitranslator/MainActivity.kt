@@ -90,14 +90,19 @@ class MainActivity : Activity() {
 
     private fun refresh() {
         val running = TranslateService.isRunning
-        // Ход дела конвейера выводим прямо на экран. С телефона логи Android
-        // не достать, так что это единственное место, где видно, на чём именно
-        // всё остановилось.
+        // Ход конвейера и последняя ошибка запуска выводятся прямо на экран.
+        // С телефона логи Android не достать, так что это единственное место,
+        // где видно, на чём именно всё остановилось.
+        val error = TranslateService.lastError(this)
         status.text = buildString {
             append("Перевод: DeepL")
             if (running) {
                 append("\n\nИдёт перевод экрана\n\n")
                 append(TranslateService.debug)
+            }
+            if (error.isNotEmpty()) {
+                append("\n\nОШИБКА ЗАПУСКА:\n")
+                append(error)
             }
         }
         button.text = if (running) "Остановить" else "Запустить перевод"

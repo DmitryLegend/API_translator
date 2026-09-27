@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.ImageFormat
@@ -84,6 +85,19 @@ class TranslateService : Service() {
         /** Последний ответ DeepL, чтобы на экране было видно код и текст ошибки. */
         @Volatile
         var lastNetError: String = ""
+
+        private const val PREFS = "last"
+
+        /**
+         * Текст последней ошибки запуска.
+         *
+         * Лежит в настройках, а не в поле, специально: падение убивает процесс
+         * вместе со всеми полями, а настройки переживают перезапуск, поэтому
+         * экран приложения сможет показать, на чём именно всё упало.
+         */
+        fun lastError(context: Context): String =
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getString("error", "").orEmpty()
 
         /**
          * Пауза между кадрами. Распознавание занимает 200–400 мс, сеть ещё
@@ -166,6 +180,32 @@ class TranslateService : Service() {
         // убил процесс, — а без разрешения на захват экрана перезапускаться
         // всё равно не с чем.
         if (intent == null || running) return START_NOT_STICKY
+
+        // Любое падение здесь убивает процесс целиком, и экран приложения
+        // гаснет вместе с ним — а логи с телефона достать нечем. Поэтому
+        // ловим всё и записываем текст ошибки в настройки: они переживут
+        // перезапуск процесса, и MainActivity его покажет.
+        return try {
+            startCapture(intent)
+        } catch (t: Throwable) {
+            Log.e(TAG, "Запуск не удался", t)
+            saveError(t)
+            stopSelf()
+            START_NOT_STICKY
+        }
+    }
+
+    /** Последняя ошибка запуска. Показывается на экране приложения. */
+    private fun saveError(t: Throwable) {
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+            .putString("error", t.stackTraceToString().take(1200))
+            .apply()
+    }
+
+    private fun startCapture(intent: Intent): Int {
+        // Старую ошибку стираем сразу: иначе на экране остался бы текст
+        // предыдущего неудачного запуска и сбивал бы с толку.
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove("error").apply()
 
         val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, 0)
         val resultData = readResultData(intent)
