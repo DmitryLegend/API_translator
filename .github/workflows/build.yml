@@ -112,7 +112,10 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
 
       - name: Тесты и подписанная сборка
-        run: ./gradlew --no-daemon testReleaseUnitTest assembleRelease
+        # bundleRelease обязателен для Play: новое приложение туда нельзя
+        # загрузить apk, принимают только .aab. Собираем оба — apk для
+        # обычной установки руками, aab для магазина.
+        run: ./gradlew --no-daemon testReleaseUnitTest assembleRelease bundleRelease
         env:
           DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
@@ -129,6 +132,9 @@ jobs:
           set -e
           tag="${GITHUB_REF_NAME}"
           apk=app/build/outputs/apk/release/app-release.apk
+          # Google Play принимает для новых приложений только .aab, apk туда
+          # не загрузить. Лежит рядом, чтобы было что взять при публикации.
+          aab=app/build/outputs/bundle/release/app-release.aab
 
           # Ищем блок подписи прямо в файле. Подпись v1 клала бы рядом
           # META-INF/*.SF, но при minSdk 26 она по умолчанию выключена, и там
@@ -148,9 +154,9 @@ jobs:
             'Исходники — пункт **Source code** рядом с этим списком, GitHub прикладывает их к каждому релизу сам.\n')
 
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" "$apk" --clobber
+            gh release upload "$tag" "$apk" "$aab" --clobber
           else
-            gh release create "$tag" "$apk" \
+            gh release create "$tag" "$apk" "$aab" \
               --title "Подстрочник $tag" \
               --notes "$notes"
           fi
