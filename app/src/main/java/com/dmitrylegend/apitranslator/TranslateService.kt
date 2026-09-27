@@ -11,7 +11,6 @@ import android.graphics.Rect
 import android.hardware.display.DisplayManager
 import android.media.Image
 import android.media.ImageReader
-import android.hardware.display.DisplayManager
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
