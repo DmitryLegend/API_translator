@@ -33,6 +33,10 @@ jobs:
         run: |
           set -o pipefail
           ./gradlew --no-daemon testDebugUnitTest assembleDebug 2>&1 | tee build.log
+        # Ключ DeepL уходит в сборку через переменную окружения и попадает в
+        # BuildConfig. Сам ключ в логах не печатается.
+        env:
+          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
 
       - name: Повесить лог ошибки к коммиту
         if: steps.build.outcome == 'failure'
