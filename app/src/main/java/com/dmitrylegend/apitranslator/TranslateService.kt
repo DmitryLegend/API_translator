@@ -7,7 +7,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.graphics.ImageFormat
+import android.graphics.Bitmap
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.hardware.display.DisplayManager
@@ -253,11 +253,11 @@ class TranslateService : Service() {
         // сейчас лежит на боку. Android сам развернёт картинку внутри буфера, а
         // мы скажем распознавателю угол поворота — и получим рамки сразу в
         // понятных координатах. Разбор этой разницы — в Geom.kt.
-        // Формат кадра — YUV_420_888, а не RGBA_8888, потому что распознаватель
-        // ML Kit из готового кадра принимает только JPEG и YUV. RGBA он
-        // принимает лишь если сначала собрать из него Bitmap, а это лишняя
-        // копия всего экрана на каждом кадре.
-        val imgReader = ImageReader.newInstance(width, height, ImageFormat.YUV_420_888, 2)
+        // Формат кадра — RGBA_8888, хотя распознаватель из готового кадра
+        // берёт только JPEG и YUV: путь через YUV_420_888 на этом телефоне
+        // роняет процесс нативно, сигналом 6, мимо любого try. RGBA мы
+        // переводим в Bitmap сами, см. toBitmap.
+        val imgReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
 
         reader = imgReader
         // В Android 15+ у createVirtualDisplay восемь параметров: после dpi идёт
@@ -335,12 +335,35 @@ class TranslateService : Service() {
     private fun process(image: Image) {
         val deg = rotationDegrees()
 
-        // Кадр отдаём распознавателю как есть, в Bitmap превращать незачем:
-        // ML Kit умеет брать такую картинку напрямую, а для цвета фона нам
-        // понадобится всего несколько сотен пикселей (см. sampleColor), а не
-        // весь кадр целиком.
+        // Распознаватель ML Kit из кадра, взятого прямо с экрана, понимает
+        // только JPEG и YUV. RGBA он берёт, только если сначала собрать из
+        // кадра Bitmap.
+        //
+        // YUV_420_888 выглядел бы красивее (не надо копировать весь кадр), но
+        // на этом телефоне он роняет процесс нативно, сигналом 6, то есть
+        // мимо любого try — поэтому идём через Bitmap. Зато и взятие цвета
+        // фона становится тривиальным: bitmap.getPixel вместо ручной сборки
+        // цвета из плоскостей.
+        val bitmap = try {
+            toBitmap(image)
+        } catch (t: Throwable) {
+            Log.w(TAG, "Кадр не превратился в картинку", t)
+            debug = "кадр в Bitmap не получился: ${t.javaClass.simpleName}: ${t.message}"
+            return
+        }
+
+        try {
+            processFrame(bitmap, deg)
+        } finally {
+            // Кадр 1080x2400 — это десяток мегабайт, раз в 0.7 секунды.
+            // Без освобождения память забьётся очень быстро.
+            bitmap.recycle()
+        }
+    }
+
+    private fun processFrame(bitmap: Bitmap, deg: Int) {
         val result = try {
-            Tasks.await(recognizer.process(InputImage.fromMediaImage(image, deg)))
+            Tasks.await(recognizer.process(InputImage.fromBitmap(bitmap, deg)))
         } catch (t: Throwable) {
             Log.w(TAG, "Распознавание не удалось", t)
             debug = "распознавание не удалось: ${t.javaClass.simpleName}: ${t.message}"
@@ -403,7 +426,7 @@ class TranslateService : Service() {
                 Item(
                     box = box,
                     text = dst,
-                    color = sampleColor(image, box, deg),
+                    color = sampleColor(bitmap, box, deg),
                     startSize = box.height() / lines.toFloat(),
                 )
             )
@@ -427,55 +450,59 @@ class TranslateService : Service() {
      * Точки берутся снаружи рамки специально: внутри сами буквы, и медиана по
      * ним ответила бы «текст тёмный», а не «фон такого-то цвета».
      */
-    private fun sampleColor(image: Image, box: Rect, deg: Int): Int {
-        val b = toBufferBox(box.left, box.top, box.right, box.bottom, deg, image.width, image.height)
+    private fun sampleColor(bitmap: Bitmap, box: Rect, deg: Int): Int {
+        val b = toBufferBox(box.left, box.top, box.right, box.bottom, deg, bitmap.width, bitmap.height)
         val ring = ringPoints(b[0], b[1], b[2], b[3], SAMPLE_BAND_PX)
-
-        // В YUV три плоскости: Y — яркость во весь кадр, U и V — цвет, причём
-        // вчетверо меньше по числу точек (формат 4:2:0). Поэтому для U и V
-        // координату делим на два.
-        val yPlane = image.planes[0]
-        val uPlane = image.planes[1]
-        val vPlane = image.planes[2]
-        val fullW = image.width
-        val fullH = image.height
-
         val samples = ArrayList<Int>(ring.size / 2)
         var i = 0
         while (i < ring.size) {
             val x = ring[i]
             val y = ring[i + 1]
-            val luma = yPlane.at(x, y, fullW, fullH)
-            val cb = uPlane.at(x / 2, y / 2, fullW / 2, fullH / 2)
-            val cr = vPlane.at(x / 2, y / 2, fullW / 2, fullH / 2)
-            if (luma != null && cb != null && cr != null) {
-                // Пересчёт YUV -> RGB по BT.601. Значения вне 0..255 обрезаем:
-                // у краёв кадра формула даёт выбросы, а нам нужен цвет фона,
-                // а не идеальная математика.
-                val du = cb - 128
-                val dv = cr - 128
-                val r = (luma + 1.402f * dv).toInt().coerceIn(0, 255)
-                val g = (luma - 0.344f * du - 0.714f * dv).toInt().coerceIn(0, 255)
-                val bl = (luma + 1.772f * du).toInt().coerceIn(0, 255)
-                samples.add(0xFF000000.toInt() or (r shl 16) or (g shl 8) or bl)
+            if (x < 0 || y < 0 || x >= bitmap.width || y >= bitmap.height) {
+                i += 2
+                continue
             }
+            samples.add(bitmap.getPixel(x, y))
             i += 2
         }
         return medianColor(samples.toIntArray())
     }
 
     /**
-     * Один байт из плоскости кадра либо null, если точка за её краем.
+     * Превращает кадр экрана в обычную картинку.
      *
-     * Размеры плоскости передаём сами: у `Image.Plane` в публичном Android SDK
-     * нет ни `width`, ни `height`, они скрыты, а гадать по буферу нельзя —
-     * в конце кадра бывает выравнивание, и последняя строка короче.
+     * Android отдаёт кадр в памяти построчно, причём «строка» бывает чуть
+     * шире самой картинки (для выравнивания), а байты внутри пикселя идут в
+     * порядке R, G, B, A. Поэтому адрес каждого пикселя приходится считать
+     * самому, а не брать готовым способом из буфера.
      */
-    private fun Image.Plane.at(x: Int, y: Int, w: Int, h: Int): Int? {
-        if (x < 0 || y < 0 || x >= w || y >= h) return null
-        val offset = y * rowStride + x * pixelStride
-        if (offset >= buffer.limit()) return null
-        return buffer.get(offset).toInt() and 0xFF
+    private fun toBitmap(image: Image): Bitmap {
+        val plane = image.planes[0]
+        val buffer = plane.buffer
+        val rowStride = plane.rowStride
+        val pixelStride = plane.pixelStride
+        val w = image.width
+        val h = image.height
+
+        // Сначала копируем в обычный массив: поштучно дёргать ByteBuffer
+        // миллионы раз дороже, чем один раз скопировать подряд.
+        val needed = (h - 1) * rowStride + w * pixelStride
+        val bytes = ByteArray(minOf(needed, buffer.remaining()))
+        buffer.get(bytes, 0, bytes.size)
+
+        val pixels = IntArray(w * h)
+        var p = 0
+        for (y in 0 until h) {
+            var off = y * rowStride
+            for (x in 0 until w) {
+                val r = bytes[off].toInt() and 0xFF
+                val g = bytes[off + 1].toInt() and 0xFF
+                val b = bytes[off + 2].toInt() and 0xFF
+                pixels[p++] = 0xFF000000.toInt() or (r shl 16) or (g shl 8) or b
+                off += pixelStride
+            }
+        }
+        return Bitmap.createBitmap(pixels, w, h, Bitmap.Config.ARGB_8888)
     }
 
     /**
