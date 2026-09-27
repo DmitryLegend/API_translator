@@ -165,12 +165,13 @@ jobs:
 
       - name: Приложить к релизу
         if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="${env:GITHUB_REF_NAME}"
-          for f in dist\podstrochnik-win-x64.zip dist\podstrochnik.exe; do
-            gh release upload $tag $f --clobber || gh release create $tag $f `
+          tag="$GITHUB_REF_NAME"
+          for f in dist/podstrochnik-win-x64.zip dist/podstrochnik.exe; do
+            gh release upload "$tag" "$f" --clobber || gh release create "$tag" "$f" \
               --title "Подстрочник $tag" --notes "Сборка для компьютера."
           done
 
