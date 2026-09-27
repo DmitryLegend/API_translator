@@ -11,6 +11,7 @@ import android.graphics.Rect
 import android.hardware.display.DisplayManager
 import android.media.Image
 import android.media.ImageReader
+import android.hardware.display.DisplayManager
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
@@ -197,17 +198,15 @@ class TranslateService : Service() {
         // понятных координатах. Разбор этой разницы — в Geom.kt.
         val imgReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
         reader = imgReader
-        // Аргументы называем по имени: если у Android в этой версии SDK
-        // параметры названы иначе, компилятор сам подскажет нужные имена.
-        proj.createVirtualDisplay(
-            name = VIRTUAL_DISPLAY,
-            width = width,
-            height = height,
-            densityDpi = 100,
-            surface = imgReader.surface,
-            callback = null,
-            handler = null
-        )
+        // В Android 15+ у createVirtualDisplay восемь параметров: после dpi идёт
+        // int flags, а поверхность идёт уже после него. Флаги AUTO_MIRROR и
+        // PRESENTATION — те же, что раньше были зашиты внутрь метода.
+        // ponytail: вызов рассчитан на API 35+ (телефон на Android 16). Для
+        // старых версий нужен обратный вызов через рефлексию — добавлять,
+        // только если приложение пойдёт на Android 14 и ниже.
+        val flags = DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR or
+            DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION
+        proj.createVirtualDisplay(VIRTUAL_DISPLAY, width, height, 100, flags, imgReader.surface, null, null)
 
 
         recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
