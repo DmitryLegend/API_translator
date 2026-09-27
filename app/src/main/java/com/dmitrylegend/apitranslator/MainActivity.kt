@@ -2,6 +2,10 @@ package com.dmitrylegend.apitranslator
 
 import android.Manifest
 import android.app.Activity
+import android.app.ActivityManager
+import android.app.ApplicationExitInfo
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -29,6 +33,9 @@ class MainActivity : Activity() {
     private val main = android.os.Handler(android.os.Looper.getMainLooper())
     private lateinit var status: TextView
     private lateinit var button: Button
+
+    /** Что уже скопировано в буфер, чтобы не сбрасывать его каждую секунду. */
+    private var copied: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -90,22 +97,66 @@ class MainActivity : Activity() {
 
     private fun refresh() {
         val running = TranslateService.isRunning
-        // Ход конвейера и последняя ошибка запуска выводятся прямо на экран.
-        // С телефона логи Android не достать, так что это единственное место,
-        // где видно, на чём именно всё остановилось.
+        val report = lastExitReport()
         val error = TranslateService.lastError(this)
-        status.text = buildString {
-            append("Перевод: DeepL")
+
+        // Автокопирование: с телефона логи не достать, а вставить текст в чат
+        // руками — лишняя ошибка. Копируем только когда есть что копировать,
+        // и не на каждом обновлении, а один раз на запуск экрана.
+        val text = buildString {
             if (running) {
-                append("\n\nИдёт перевод экрана\n\n")
+                append("Идёт перевод экрана\n\n")
                 append(TranslateService.debug)
             }
-            if (error.isNotEmpty()) {
-                append("\n\nОШИБКА ЗАПУСКА:\n")
-                append(error)
-            }
+            if (error.isNotEmpty()) append("\n\nОШИБКА ЗАПУСКА:\n$error")
+            if (report.isNotEmpty()) append("\n\nПРИЧИНА ПАДЕНИЯ ПРОЦЕССА:\n$report")
+        }
+        if (text.isNotEmpty() && text != copied) {
+            copied = text
+            copyToClipboard(text)
+        }
+
+        status.text = buildString {
+            append("Перевод: DeepL")
+            if (text.isNotEmpty()) append("\n\n").append(text)
+            if (text.isNotEmpty()) append("\n\n(скопировано в буфер обмена)")
         }
         button.text = if (running) "Остановить" else "Запустить перевод"
+    }
+
+    private fun copyToClipboard(text: String) {
+        (getSystemService(CLIPBOARD_SERVICE) as? ClipboardManager)
+            ?.setPrimaryClip(ClipData.newPlainText("API_translator", text))
+    }
+
+    /**
+     * Почему процесс умер в прошлый раз.
+     *
+     * Нужно потому, что наш собственный `try` тут бессилен: если процесс
+     * убивают насквозь — нативный краш, сигнал от системы, нехватка памяти —
+     * код не успевает ничего записать, и приложение просто исчезает. Android
+     * при этом сам запоминает причину и отдаёт её при следующем запуске
+     * вместе с текстом падения.
+     */
+    private fun lastExitReport(): String {
+        if (Build.VERSION.SDK_INT < 30) return ""
+        val am = getSystemService(ACTIVITY_SERVICE) as? ActivityManager ?: return ""
+        val info = runCatching {
+            am.getHistoricalProcessExitReasons(packageName, 0, 1).firstOrNull()
+        }.getOrNull() ?: return ""
+        val why = when (info.reason) {
+            ApplicationExitInfo.REASON_CRASH -> "обычный краш"
+            ApplicationExitInfo.REASON_CRASH_NATIVE -> "нативный краш"
+            ApplicationExitInfo.REASON_ANR -> "зависание (ANR)"
+            ApplicationExitInfo.REASON_SIGNALED -> "убит сигналом " + info.status
+            ApplicationExitInfo.REASON_LOW_MEMORY -> "кончилась память"
+            ApplicationExitInfo.REASON_USER_REQUESTED -> "пользователь закрыл"
+            else -> "причина ${info.reason}, код ${info.status}"
+        }
+        val trace = runCatching {
+            info.traceInputStream?.bufferedReader()?.use { it.readText() } ?: ""
+        }.getOrDefault("")
+        return "$why\n$trace".take(4000)
     }
 
     private fun toggle() {
