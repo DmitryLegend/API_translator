@@ -19,6 +19,16 @@ val deeplKey = providers.environmentVariable("DEEPL_API_KEY").orNull
 // получишь 403 от чужого адреса, поэтому проверяем здесь.
 val deeplFreeHost = deeplKey.endsWith(":fx")
 
+// На сервере ключ обязателен. Без этой проверки сборка молча прошла бы и
+// выдала APK, который запускается, но ничего не переводит. Локально ключ
+// можно не задавать — приложение честно скажет об этом на стартовом экране.
+if (providers.environmentVariable("CI").isPresent && deeplKey.isBlank()) {
+    error(
+        "Секрет DEEPL_API_KEY не найден. Добавь его в " +
+            "Settings -> Secrets and variables -> Actions -> New repository secret."
+    )
+}
+
 android {
     namespace = "com.dmitrylegend.apitranslator"
 
