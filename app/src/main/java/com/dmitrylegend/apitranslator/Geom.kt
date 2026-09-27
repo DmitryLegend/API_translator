@@ -192,3 +192,37 @@ fun medianColor(pixels: IntArray): Int {
     val m = pixels.size / 2
     return (0xFF shl 24) or (r[m] shl 16) or (g[m] shl 8) or b[m]
 }
+
+/**
+ * Насколько две рамки описывают одно и то же место на экране: от 0 до 1.
+ *
+ * Считается как отношение общей площади к площади объединения (IoU). Ноль —
+ * рамки не касаются, единица — совпали до пикселя.
+ *
+ * Зачем это здесь. Распознавание возвращает рамку заново каждый кадр, и
+ * брать её свежей нельзя: перевод прыгал бы по экрану. Поэтому рамку
+ * запоминают один раз и больше не трогают. Но тогда рамку нужно уметь и
+ * отбросить — если тот же самый текст появился в другом месте экрана, это уже
+ * другая строка, и старую рамку для неё брать нельзя. Именно из-за неё
+ * перевод прошлой фразы оставался висеть поверх новой.
+ *
+ * Прямоугольники приходят координатами, а не объектами `Rect`, чтобы файл
+ * остался без Android и его можно было прогнать обычным тестом на
+ * компьютере. Площади считаются в `Long`: координаты пиксельные, но
+ * перемножать их всё равно дешевле, чем думать о переполнении.
+ */
+fun boxOverlap(
+    leftA: Int, topA: Int, rightA: Int, bottomA: Int,
+    leftB: Int, topB: Int, rightB: Int, bottomB: Int,
+): Float {
+    val sharedW = minOf(rightA, rightB) - maxOf(leftA, leftB)
+    if (sharedW <= 0) return 0f
+    val sharedH = minOf(bottomA, bottomB) - maxOf(topA, topB)
+    if (sharedH <= 0) return 0f
+
+    val shared = sharedW.toLong() * sharedH
+    val areaA = (rightA - leftA).toLong() * (bottomA - topA)
+    val areaB = (rightB - leftB).toLong() * (bottomB - topB)
+    val union = areaA + areaB - shared
+    return if (union <= 0L) 0f else shared.toFloat() / union.toFloat()
+}
