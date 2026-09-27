@@ -41,13 +41,10 @@ jobs:
           script: |
             const fs = require('fs')
             const log = fs.existsSync('build.log') ? fs.readFileSync('build.log', 'utf8') : '(нет build.log)'
-            // Сначала пытаемся вытащить сами строки с ошибками, и только если
-            // не вышло — последние 4000 символов лога целиком.
-            const picked = log.split('\n').filter(l =>
-              /^\s*[ew]: /.test(l) ||
-              /error:|FAILURE|Execution failed|Caused by:|> Task .* FAILED|^\* What went wrong/.test(l)
-            )
-            const body = (picked.length ? picked.join('\n') : log.slice(-4000)).slice(0, 60000)
+            // Забираем хвост лога целиком, без выборочных строк: неизвестно
+            // заранее, как именно отформатирует ошибку та или другая версия
+            // Gradle, а 6000 символов заведомо влезают в комментарий.
+            const body = log.slice(-12000).slice(0, 60000)
             // Комментарий именно к коммиту, а не к задаче: событие у нас
             // push, и context.issue там не существует.
             await github.rest.repos.createCommitComment({
