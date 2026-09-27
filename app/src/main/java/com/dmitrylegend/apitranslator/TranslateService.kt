@@ -21,7 +21,6 @@ import android.util.Log
 import android.util.LruCache
 import android.view.Display
 import android.view.Surface
-import android.view.View
 import android.view.WindowManager
 import com.google.android.gms.tasks.Tasks
 import com.google.mlkit.vision.common.InputImage
@@ -134,7 +133,9 @@ class TranslateService : Service() {
     private lateinit var recognizer: com.google.mlkit.vision.text.TextRecognizer
     private var reader: ImageReader? = null
     private var projection: MediaProjection? = null
-    private var view: View? = null
+    // Тип именно OverlayView, а не View: ниже мы вызываем его собственный
+    // метод setItems, которого у обычного View нет.
+    private var view: OverlayView? = null
 
     @Volatile
     private var running = false
@@ -196,7 +197,18 @@ class TranslateService : Service() {
         // понятных координатах. Разбор этой разницы — в Geom.kt.
         val imgReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
         reader = imgReader
-        proj.createVirtualDisplay(VIRTUAL_DISPLAY, width, height, 100, imgReader.surface, null, null)
+        // Аргументы называем по имени: если у Android в этой версии SDK
+        // параметры названы иначе, компилятор сам подскажет нужные имена.
+        proj.createVirtualDisplay(
+            name = VIRTUAL_DISPLAY,
+            width = width,
+            height = height,
+            densityDpi = 100,
+            surface = imgReader.surface,
+            callback = null,
+            handler = null
+        )
+
 
         recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
