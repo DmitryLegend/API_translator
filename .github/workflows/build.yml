@@ -47,10 +47,12 @@ jobs:
               /error:|FAILURE|Execution failed|Caused by:|> Task .* FAILED|^\* What went wrong/.test(l)
             )
             const body = (picked.length ? picked.join('\n') : log.slice(-4000)).slice(0, 60000)
-            await github.rest.issues.createComment({
+            // Комментарий именно к коммиту, а не к задаче: событие у нас
+            // push, и context.issue там не существует.
+            await github.rest.repos.createCommitComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              commit_sha: context.sha,
               body: '### Сборка упала\n\n```\n' + body + '\n```'
             })
 
