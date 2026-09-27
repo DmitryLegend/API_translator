@@ -68,6 +68,24 @@ class TranslateService : Service() {
         const val READ_TIMEOUT_MS = 15_000
 
         /**
+         * Что происходит прямо сейчас — показывается на экране приложения.
+         *
+         * Нужно потому, что с телефона в Termux логи Android не достать вовсе:
+         * система отдаёт только логи самого Termux. Единственный способ понять,
+         * на каком шаге конвейера всё встало, — показать это человеку.
+         */
+        @Volatile
+        var debug: String = "перевод ещё не запускался"
+
+        /** Сколько раз DeepL ответил неудачей. Ненулевое — значит, сеть или ключ. */
+        @Volatile
+        var netErrors: Int = 0
+
+        /** Последний ответ DeepL, чтобы на экране было видно код и текст ошибки. */
+        @Volatile
+        var lastNetError: String = ""
+
+        /**
          * Пауза между кадрами. Распознавание занимает 200–400 мс, сеть ещё
          * 300–600 мс, так что быстрее полутора кадров в секунду всё равно не
          * выйдет, а батарея сядет заметно быстрее.
@@ -235,23 +253,31 @@ class TranslateService : Service() {
      * иначе на статичной картинке он крутился бы вхолостую и грел процессор.
      */
     private fun loop() {
+        var frames = 0
         while (running) {
             val image = try {
                 reader?.acquireLatestImage()
             } catch (t: Throwable) {
                 Log.w(TAG, "Не удалось взять кадр", t)
+                debug = "ошибка кадра: ${t.javaClass.simpleName}: ${t.message}"
                 null
             }
             if (image != null) {
+                frames++
                 try {
                     process(image)
                 } catch (t: Throwable) {
                     Log.w(TAG, "Кадр не обработан", t)
+                    debug = "кадр #$frames, ошибка: ${t.javaClass.simpleName}: ${t.message}"
                 } finally {
                     // Кадр обязательно закрываем. Забудешь — ImageReader
                     // упрётся в лимит картинок, и захват экрана встанет.
                     image.close()
                 }
+            } else {
+                // Если эта строка висит — значит, картинка от Android не идёт
+                // вовсе, и вопрос уже не в распознавании, а в захвате.
+                debug = "кадров: $frames, картинка пока не приходит"
             }
             try {
                 Thread.sleep(SCAN_MS)
@@ -272,22 +298,31 @@ class TranslateService : Service() {
             Tasks.await(recognizer.process(InputImage.fromMediaImage(image, deg)))
         } catch (t: Throwable) {
             Log.w(TAG, "Распознавание не удалось", t)
+            debug = "распознавание не удалось: ${t.javaClass.simpleName}: ${t.message}"
             return
         }
 
         val boxes = ArrayList<Rect>()
         val texts = ArrayList<String>()
+        var skippedSmall = 0
+        var skippedRussian = 0
         for (block in result.textBlocks) {
             val src = block.text.trim()
             val box = block.boundingBox
             if (src.isEmpty() || src.length > MAX_BLOCK_CHARS) continue
-            if (box == null || box.width() < MIN_BOX_PX || box.height() < MIN_BOX_PX) continue
+            if (box == null || box.width() < MIN_BOX_PX || box.height() < MIN_BOX_PX) {
+                skippedSmall++
+                continue
+            }
 
             // Не переводим то, что уже на русском.
             // Язык берём у первого слова первой строки блока — это единственное
             // место, где распознавание гарантированно его называет.
             val lang = block.lines.firstOrNull()?.elements?.firstOrNull()?.recognizedLanguage
-            if (lang != null && lang.startsWith(TARGET_LANG, ignoreCase = true)) continue
+            if (lang != null && lang.startsWith(TARGET_LANG, ignoreCase = true)) {
+                skippedRussian++
+                continue
+            }
 
             boxes.add(box)
             texts.add(src)
@@ -330,6 +365,12 @@ class TranslateService : Service() {
         }
 
         Log.d(TAG, "найдено=${texts.size} показано=${items.size} отправлено=${toSend.size}")
+        // Показываем весь ход дела на экране приложения: с телефона логи не
+        // достать, а «ничего не переводится» одинаково выглядит и при сети,
+        // и при пустом распознавании.
+        debug = "блоков всего ${result.textBlocks.size} (мелких $skippedSmall, " +
+            "русских $skippedRussian)\nпереводим: ${texts.size}, показано: ${items.size}\n" +
+            "ошибок сети: $netErrors" + if (lastNetError.isEmpty()) "" else "\n$lastNetError"
         // setItems трогает картинку на экране, поэтому только с главного потока.
         main.post { view?.setItems(items) }
     }
@@ -430,9 +471,11 @@ class TranslateService : Service() {
 
                 if (code !in 200..299) {
                     // 403 — ключ не от того адреса, 429 — упёрлись в лимит,
-                    // 456 — ключ сломан. Пишем в лог и идём дальше: через пару
-                    // секунд тот же текст попробует уйти снова.
+                    // 456 — ключ сломан. Пишем и в лог, и на экран приложения:
+                    // иначе пользователь видит просто «ничего не переводится».
                     Log.w(TAG, "DeepL ответил $code: ${payload.take(300)}")
+                    netErrors++
+                    lastNetError = "DeepL $code: ${payload.take(120)}"
                     continue
                 }
 
@@ -444,6 +487,8 @@ class TranslateService : Service() {
                 Log.i(TAG, "DeepL: ${chunk.size} строк, в памяти ${cache.size()}")
             } catch (t: Throwable) {
                 Log.w(TAG, "Запрос к DeepL не прошёл", t)
+                netErrors++
+                lastNetError = "сеть: ${t.javaClass.simpleName}: ${t.message}"
             }
         }
     }

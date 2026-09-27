@@ -26,6 +26,7 @@ import android.widget.TextView
  */
 class MainActivity : Activity() {
 
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
     private lateinit var status: TextView
     private lateinit var button: Button
 
@@ -70,14 +71,34 @@ class MainActivity : Activity() {
         // Экран мог вернуться к нам из настроек разрешений — рисуем актуальное
         // состояние, а не то, что было при запуске.
         refresh()
+        // Пока идёт перевод, обновляем счётчики раз в секунду: иначе цифры
+        // на экране были бы из того момента, когда вы сюда зашли.
+        main.postDelayed(ticker, 1000)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        main.removeCallbacks(ticker)
+    }
+
+    private val ticker = object : Runnable {
+        override fun run() {
+            refresh()
+            if (TranslateService.isRunning) main.postDelayed(this, 1000)
+        }
     }
 
     private fun refresh() {
         val running = TranslateService.isRunning
-        status.text = if (running) {
-            "Перевод: DeepL\n\nИдёт перевод экрана"
-        } else {
-            "Перевод: DeepL"
+        // Ход дела конвейера выводим прямо на экран. С телефона логи Android
+        // не достать, так что это единственное место, где видно, на чём именно
+        // всё остановилось.
+        status.text = buildString {
+            append("Перевод: DeepL")
+            if (running) {
+                append("\n\nИдёт перевод экрана\n\n")
+                append(TranslateService.debug)
+            }
         }
         button.text = if (running) "Остановить" else "Запустить перевод"
     }
