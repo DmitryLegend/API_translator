@@ -19,8 +19,8 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
-import android.util.LruCache
 import android.view.Display
 import android.view.Surface
 import android.view.WindowManager
@@ -116,8 +116,21 @@ class TranslateService : Service() {
          *
          * Заодно это главная экономия лимита: 1 000 000 символов в месяц — не
          * бездонно.
+         *
+         * Трёх кадров, а не двух, по опыту: мусор от сжатого видео держится
+         * на экране ровно столько, сколько длится кадр, и успевает пройти
+         * проверку дважды, но не трижды.
          */
-        private const val STABLE_SCANS = 2
+        private const val STABLE_SCANS = 3
+
+        /** Строка, которой не видели [LINE_TTL_MS], считается ушедшей с экрана. */
+        private const val LINE_TTL_MS = 8_000L
+
+        /** Больше этого числа строк на экране не бывает; страховка от утечки. */
+        private const val MAX_LINES = 60
+
+        /** Знаки, которые встречаются в обычном тексте. Всё прочее — мусор. */
+        private const val ALLOWED_PUNCT = " .,!?;:'\"()-%+\u2014\u2026"
 
         /** Блок длиннее — почти наверняка мусор распознавания. Не переводим. */
         private const val MAX_BLOCK_CHARS = 400
@@ -132,13 +145,6 @@ class TranslateService : Service() {
         private const val SAMPLE_BAND_PX = 3
 
         /**
-         * Сколько переводов помним. Названия кнопок и реплики героев
-         * повторяются постоянно, и каждый повтор из памяти — это запрос,
-         * до которого мы не дошли.
-         */
-        private const val CACHE_SIZE = 2000
-
-        /**
          * Простое «работает или нет». Приложение одно и однопоточное по
          * экрану, поэтому связывать MainActivity с сервисом через
          * подключение смысла нет.
@@ -148,11 +154,39 @@ class TranslateService : Service() {
             private set
     }
 
-    /** Память переводов. Кто-то один её трогает — рабочий поток. */
-    private val cache = LruCache<String, String>(CACHE_SIZE)
+    /**
+     * Известные строки на экране: что распознано, где стоит и как переведено.
+     *
+     * Заменило два разных хранилища (память переводов и счётчики
+     * повторяемости), потому что они решали одну задачу и мешали друг другу:
+     * перевод искался по точному совпадению строки, а распознавание дрожит, и
+     * одна и та же фраза кадр за кадром приходит чуть иначе. Теперь строка
+     * опознаётся по близости, вместе с рамкой и переводом, и не меняется.
+     */
+    private val lines = ArrayList<Line>()
 
-    /** Сколько кадров подряд каждая строка наблюдалась одинаковой. */
-    private val stability = HashMap<String, Int>()
+    /**
+     * Одна узнанная строка. Поток у конвейера один, синхронизация не нужна.
+     */
+    private class Line(
+        /** Ключ для сравнения: [normalize] от текста, без пробелов и знаков. */
+        val key: String,
+        /** Текст в том виде, в каком его надо переводить. */
+        val src: String,
+        /**
+         * Рамка берётся один раз, при первом появлении строки, и дальше не
+         * трогается. Каждый кадр распознавание возвращает рамку на пару
+         * пикселей иначе, и если брать её свежей, перевод будет прыгать по
+         * экрану.
+         */
+        val box: Rect,
+        /** Перевод. null, пока строка ещё не отправлена в DeepL. */
+        var translation: String? = null,
+        /** Сколько кадров подряд мы видели именно эту строку. */
+        var seen: Int = 0,
+        /** Когда видели в последний раз, миллисекунды [android.os.SystemClock]. */
+        var lastSeen: Long = 0,
+    )
 
     /**
      * Один поток на весь конвейер. Он и задаёт темп: пока заняты распознаванием
@@ -362,6 +396,7 @@ class TranslateService : Service() {
     }
 
     private fun processFrame(bitmap: Bitmap, deg: Int) {
+        val now = SystemClock.elapsedRealtime()
         val result = try {
             Tasks.await(recognizer.process(InputImage.fromBitmap(bitmap, deg)))
         } catch (t: Throwable) {
@@ -370,18 +405,15 @@ class TranslateService : Service() {
             return
         }
 
-        val boxes = ArrayList<Rect>()
-        val texts = ArrayList<String>()
-        var skippedSmall = 0
+        var skippedGarbage = 0
         var skippedRussian = 0
+        val found = ArrayList<Line>()
+
         for (block in result.textBlocks) {
+            val box = block.boundingBox ?: continue
             val src = block.text.trim()
-            val box = block.boundingBox
             if (src.isEmpty() || src.length > MAX_BLOCK_CHARS) continue
-            if (box == null || box.width() < MIN_BOX_PX || box.height() < MIN_BOX_PX) {
-                skippedSmall++
-                continue
-            }
+            if (box.width() < MIN_BOX_PX || box.height() < MIN_BOX_PX) continue
 
             // Не переводим то, что уже на русском.
             // Язык берём у первого слова первой строки блока — это единственное
@@ -392,55 +424,118 @@ class TranslateService : Service() {
                 continue
             }
 
-            boxes.add(box)
-            texts.add(src)
+            // Мусор от сжатого видео. Лица, текстуры, буквы, наполовину
+            // съеденные артефактами, — распознавание охотно выдаёт их за
+            // строки. Если такое отправить в DeepL, на экране появится перевод
+            // того, чего нет.
+            if (!looksLikeText(src)) {
+                skippedGarbage++
+                continue
+            }
+
+            // Ищем не по точному совпадению, а по близости: «Неllo» должно
+            // найти уже известное «Hello» и не породить ни нового запроса, ни
+            // прыгающей рамки.
+            val key = normalize(src)
+            val line = findLine(key) ?: Line(key, src, Rect(box)).also { lines.add(it) }
+            line.seen++
+            line.lastSeen = now
+            found.add(line)
         }
 
-        // Считаем строку готовой к отправке, только когда увидели её
-        // STABLE_SCANS раз подряд. Проверка именно «== », а не «>= », заодно
-        // убирает повторы: если одна строка попала в два блока, к моменту
-        // второй прохода счётчик уже увеличен и второй раз в список не попадёт.
-        val onScreen = HashSet(texts)
-        val toSend = ArrayList<String>()
-        for (t in texts) {
-            if (cache.get(t) != null) continue
-            val n = (stability[t] ?: 0) + 1
-            stability[t] = n
-            if (n == STABLE_SCANS) toSend.add(t)
+        // Забываем строки, ушедшие с экрана: субтитры сменились, и держать
+        // старые переводы в памяти незачем.
+        lines.removeAll { now - it.lastSeen > LINE_TTL_MS }
+        if (lines.size > MAX_LINES) {
+            lines.subList(0, lines.size - MAX_LINES).clear()
         }
-        // Забываем строки, ушедшие с экрана. Иначе при долгой прокрутке память
-        // забьётся десятками тысяч ненужных ключей.
-        stability.keys.toList().forEach { if (!onScreen.contains(it)) stability.remove(it) }
 
+        val toSend = found.filter { it.translation == null && it.seen == STABLE_SCANS }
         if (toSend.isNotEmpty()) translate(toSend)
 
-        // Рисуем всё, для чего перевод уже есть. Только что увиденные строки
-        // в этом кадре не появятся — подставятся следующим, через 0.7–2 секунды.
-        // Это и есть та самая задержка.
-        val items = ArrayList<Item>(texts.size)
-        for (i in texts.indices) {
-            val dst = cache.get(texts[i]) ?: continue
-            val box = boxes[i]
-            val lines = texts[i].count { it == '\n' } + 1
-            items.add(
+        // Рисуем всё, что уже признано настоящим текстом. Пока перевод ещё не
+        // пришёл, рамку всё равно закрашиваем, но пустым текстом: оригинал
+        // исчезает сразу и не мельтешит, пока едет ответ от DeepL.
+        val out = ArrayList<Item>(found.size)
+        for (line in found) {
+            if (line.seen < STABLE_SCANS) continue
+            val box = line.box
+            val rows = line.src.count { it == '\n' } + 1
+            out.add(
                 Item(
                     box = box,
-                    text = dst,
+                    text = line.translation ?: "",
                     color = sampleColor(bitmap, box, deg),
-                    startSize = box.height() / lines.toFloat(),
+                    startSize = box.height() / rows.toFloat(),
                 )
             )
         }
 
-        Log.d(TAG, "найдено=${texts.size} показано=${items.size} отправлено=${toSend.size}")
+        Log.d(TAG, "найдено=${found.size} показано=${out.size} отправлено=${toSend.size}")
+
         // Показываем весь ход дела на экране приложения: с телефона логи не
         // достать, а «ничего не переводится» одинаково выглядит и при сети,
         // и при пустом распознавании.
-        debug = "блоков всего ${result.textBlocks.size} (мелких $skippedSmall, " +
-            "русских $skippedRussian)\nпереводим: ${texts.size}, показано: ${items.size}\n" +
+        debug = "блоков всего ${result.textBlocks.size} (мусор $skippedGarbage, " +
+            "русских $skippedRussian)\nстрок в работе: ${found.size}, показано: ${out.size}\n" +
             "ошибок сети: $netErrors" + if (lastNetError.isEmpty()) "" else "\n$lastNetError"
-        // setItems трогает картинку на экране, поэтому только с главного потока.
-        main.post { view?.setItems(items) }
+
+        // Перерисовываем оверлей только если что-то действительно изменилось.
+        // Раньше мы дёргали setItems каждый кадр, и оверлей мигал даже тогда,
+        // когда картинка была та же самая: список пересоздавался заново и
+        // сравнить его было не с чем.
+        if (out != shown) {
+            shown = out
+            // setItems трогает картинку на экране, поэтому только с главного потока.
+            main.post { view?.setItems(out) }
+        }
+    }
+
+    /** Что сейчас нарисовано на оверлее. Только рабочий поток. */
+    private var shown: List<Item> = emptyList()
+
+    /**
+     * Ключ для сравнения строк: без пробелов, знаков и регистра.
+     *
+     * Так «Hello, world», «hello world» и «Неllo, wоrld» дают один ключ, и
+     * распознавание перестаёт ронять перевод на каждую описку.
+     */
+    private fun normalize(s: String): String =
+        s.lowercase().filter { it.isLetterOrDigit() }
+
+    /**
+     * Ищет уже известную строку: сначала по точному ключу, затем по близости.
+     *
+     * Второй проход — то, ради чего всё затевалось. Без него дрожь
+     * распознавания превращалась бы в тысячи одинаковых запросов к DeepL и в
+     * рамку, прыгающую по экрану.
+     */
+    private fun findLine(key: String): Line? {
+        if (key.isEmpty()) return null
+        lines.firstOrNull { it.key == key }?.let { return it }
+        for (l in lines) {
+            if (editDistanceWithin(key, l.key, 2)) return l
+        }
+        return null
+    }
+
+    /**
+     * Похоже ли это вообще на текст, который стоит переводить.
+     *
+     * Требования намеренно грубые: букв должно быть несколько, и они должны
+     * идти подряд, без разнородного мусора между ними. Настоящая надпись
+     * удовлетворяет этому всегда, а вот «8Зр|Зо», распознанное из лица или
+     * из полосы сжатия, — нет.
+     *
+     * ponytail: грубая эвристика по символам. Настоящий фильтр один — стабильность
+     * на [STABLE_SCANS] кадрах, мусор от сжатия не держится три кадра. Если после
+     * этого всё ещё полезут выдуманные строки, смотреть в сторону ML Kit
+     * TextRecognizerOptions с перечислением языков вместо подгонки порогов.
+     */
+    private fun looksLikeText(s: String): Boolean {
+        if (s.count { it.isLetter() } < 3) return false
+        val allowed = s.count { it.isLetterOrDigit() || it in ALLOWED_PUNCT }
+        return allowed >= s.length * 3 / 4
     }
 
     /**
@@ -510,11 +605,11 @@ class TranslateService : Service() {
      * пробрасываем: при обрыве сети лучше молча не показать перевод, чем
      * уронить весь конвейер.
      */
-    private fun translate(texts: List<String>) {
-        for (chunk in texts.chunked(BATCH)) {
+    private fun translate(pending: List<Line>) {
+        for (chunk in pending.chunked(BATCH)) {
             try {
                 val body = JSONObject()
-                    .put("text", JSONArray(chunk))
+                    .put("text", JSONArray(chunk.map { it.src }))
                     .put("target_lang", TARGET_LANG)
                     // split_sentences=0 — «не делить на предложения». По
                     // умолчанию DeepL режет текст по точкам, и короткая надпись
@@ -558,9 +653,9 @@ class TranslateService : Service() {
                 val translations = JSONObject(payload).getJSONArray("translations")
                 for (i in chunk.indices) {
                     val translated = translations.getJSONObject(i).optString("text")
-                    if (translated.isNotEmpty()) cache.put(chunk[i], translated)
+                    if (translated.isNotEmpty()) chunk[i].translation = translated
                 }
-                Log.i(TAG, "DeepL: ${chunk.size} строк, в памяти ${cache.size()}")
+                Log.i(TAG, "DeepL: ${chunk.size} строк, всего в работе ${lines.size}")
             } catch (t: Throwable) {
                 Log.w(TAG, "Запрос к DeepL не прошёл", t)
                 netErrors++

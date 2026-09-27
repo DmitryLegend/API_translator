@@ -1,5 +1,7 @@
 package com.dmitrylegend.apitranslator
 
+import kotlin.math.abs
+
 /**
  * Простые математические помощники. Здесь нет ничего из Android, поэтому
  * код из этого файла можно прогнать обычным тестом на компьютере
@@ -89,6 +91,49 @@ fun fitSize(minSize: Float, maxSize: Float, maxHeight: Float, heightOf: (Float) 
         if (heightOf(mid) <= maxHeight) lo = mid else hi = mid
     }
     return lo
+}
+
+/**
+ * Насколько две строки близки друг к другу.
+ *
+ * Распознавание текста дрожет: одну и ту же фразу кадр за кадром оно читает то
+ * «Hello, world!», то «Неllo, wоrld!», то «Hello, world» без запятой. Если
+ * искать перевод по точному совпадению, каждая такая описка будет считаться
+ * новой строкой — экран мигает, а лимит DeepL уходит впустую.
+ *
+ * Возвращает true, если строки отличаются не более чем на [max] правок:
+ * вставка, удаление или замена одного символа.
+ *
+ * Расстояние считается полосами: храним только две строки вместо всей
+ * таблицы. Выходим раньше только когда даже лучшая позиция в строке уехала
+ * за [max]: строка идёт слева направо, и опуститься ниже этого уже не
+ * получится.
+ */
+fun editDistanceWithin(a: String, b: String, max: Int): Boolean {
+    if (a == b) return true
+    if (abs(a.length - b.length) > max) return false
+
+    var previous = IntArray(b.length + 1) { it }
+    var current = IntArray(b.length + 1)
+
+    for (i in 1..a.length) {
+        current[0] = i
+        var best = current[0]
+        for (j in 1..b.length) {
+            val cost = if (a[i - 1] == b[j - 1]) 0 else 1
+            current[j] = minOf(
+                current[j - 1] + 1,      // вставка
+                previous[j] + 1,        // удаление
+                previous[j - 1] + cost, // замена
+            )
+            if (current[j] < best) best = current[j]
+        }
+        if (best > max) return false
+        val swap = previous
+        previous = current
+        current = swap
+    }
+    return previous[b.length] <= max
 }
 
 /**

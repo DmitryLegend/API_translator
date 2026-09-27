@@ -90,6 +90,27 @@ class GeomTest {
     }
 
     /**
+     * Распознавание дрожит, и эта дрожь не должна считаться новым текстом.
+     * Проверяем ровно то, на чём держался перевод: на близости строк.
+     */
+    @Test
+    fun дрожь_распознавания_считается_той_же_строкой() {
+        // Опечатка в одной букве и потерянный пробел — обычное дело.
+        assertTrue(editDistanceWithin("helloworld", "helloworid", 2))
+        assertTrue(editDistanceWithin("helloworld", "helloworld", 2))
+        assertTrue(editDistanceWithin("hello", "hellow", 1))
+        // А вот это уже другой текст, пусть и похожий по буквам.
+        assertFalse(editDistanceWithin("helloworld", "goodbyeworld", 2))
+        assertFalse(editDistanceWithin("hello", "goodbye", 2))
+        assertFalse(editDistanceWithin("startgame", "loadlevel", 2))
+        // Разница ровно в середине: ранний выход по строке обязан увидеть,
+        // что по краям всё совпало, и не выкинуть пару раньше времени.
+        assertTrue(editDistanceWithin("abcdef", "abcxef", 1))
+        assertTrue(editDistanceWithin("startgameover", "startgamrover", 1))
+        assertFalse(editDistanceWithin("startgameover", "startgamrsover", 1))
+    }
+
+    /**
      * Медиана игнорирует выбросы, среднее арифметическое — нет. Именно на этом
      * держится заливка «в цвет фона»: один яркий пиксель посреди тёмного фона
      * не должен превращать заливку в серое пятно.
