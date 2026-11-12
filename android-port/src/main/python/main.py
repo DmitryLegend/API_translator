@@ -200,9 +200,10 @@ class MainActivity(
         if infos is None or infos.isEmpty():
             return ""
         info = infos.get(0)
-        # Обычные закрытия (смахнул из недавних, «Остановить») — не падение:
-        # их не показываем, иначе экран пугает на ровном месте.
-        if info.getReason() in (0, 1, 9, 10):  # UNKNOWN, EXIT_SELF, USER_*
+        # Обычные закрытия и убийства кэш-процессов — не падение, не показываем:
+        # 0 UNKNOWN, 1 EXIT_SELF, 9 USER_REQUESTED, 10 USER_STOPPED,
+        # 12 INIT_EXEC, 15 FREEZER, 16 STOPPED_BY_REDIRECT.
+        if info.getReason() in (0, 1, 9, 10, 12, 15, 16):
             return ""
         # Отчёт показываем один раз: иначе старое падение (история
         # процесса переживает переустановку) висит на экране вечно.
@@ -224,9 +225,13 @@ class MainActivity(
                     "система убила: слишком много ресурсов",
                 ApplicationExitInfo.REASON_DEPENDENCY_DIED: "умер процесс-спутник",
                 ApplicationExitInfo.REASON_SIGNALED: "убит сигналом",
-            }.get(info.getReason(), "система убила процесс")
+            }.get(info.getReason())
         except BaseException:
-            why = "причина: код " + str(info.getReason())
+            why = None
+        if why is None:
+            why = (info.getDescription() or "").strip()
+        if not why:
+            why = "система убила процесс, код " + str(info.getReason())
         trace = ""
         try:
             stream = info.getTraceInputStream()
