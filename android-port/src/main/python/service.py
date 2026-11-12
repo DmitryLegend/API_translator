@@ -108,6 +108,7 @@ class TranslateService(
 
     @Override(jvoid, [])
     def onDestroy(self):
+        Service.onDestroy(self)
         self._running = False
         STATE["running"] = False
         STATE["debug"] = "перевод остановлен"

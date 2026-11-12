@@ -41,6 +41,9 @@ class MainActivity(
 
     @Override(jvoid, [Bundle])
     def onCreate(self, state):
+        # Без вызова базового onCreate Android убивает активность
+        # (SuperNotCalledException); у статического прокси это ручная работа.
+        Activity.onCreate(self, state)
         pad = self._dp(24)
         root = LinearLayout(self)
         root.setOrientation(LinearLayout.VERTICAL)
@@ -71,17 +74,20 @@ class MainActivity(
 
     @Override(jvoid, [])
     def onResume(self):
+        Activity.onResume(self)
         self._ticker = UiTask(self._refresh_tick)
         self._main.postDelayed(self._ticker, 1000)
 
     @Override(jvoid, [])
     def onPause(self):
+        Activity.onPause(self)
         if self._ticker is not None:
             self._main.removeCallbacks(self._ticker)
             self._ticker = None
 
     @Override(jvoid, [jint, jint, Intent], modifiers="protected")
     def onActivityResult(self, request_code, result_code, data):
+        Activity.onActivityResult(self, request_code, result_code, data)
         if request_code != REQ_CAPTURE:
             return
         if result_code != Activity.RESULT_OK or data is None:
@@ -96,6 +102,7 @@ class MainActivity(
 
     @Override(jvoid, [jint, jarray(String), jarray(jint)])
     def onRequestPermissionsResult(self, request_code, permissions, results):
+        Activity.onRequestPermissionsResult(self, request_code, permissions, results)
         if request_code == REQ_NOTIFICATIONS:
             self._start()
 
