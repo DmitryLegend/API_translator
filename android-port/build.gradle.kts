@@ -1,3 +1,5 @@
+import java.util.Base64
+
 plugins {
     id("com.android.application") version "8.13.2"
     id("com.chaquo.python") version "17.2.0"
