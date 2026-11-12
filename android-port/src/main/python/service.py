@@ -255,7 +255,10 @@ class TranslateService(
             )
             return
         readings = []
-        for block in result.getTextBlocks():
+        # Java-список не итерируется из Python: ходим явным итератором.
+        blocks = result.getTextBlocks().iterator()
+        while blocks.hasNext():
+            block = blocks.next()
             box = block.getBoundingBox()
             if box is None:
                 continue
