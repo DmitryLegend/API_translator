@@ -95,7 +95,10 @@ class MainActivity(
             return
         intent = Intent()
         intent.setClassName(self, SERVICE_CLASS)
-        intent.putExtra(EXTRA_RESULT_CODE, result_code)
+        # jint обязателен: обычное Python-число Chaquopy кладёт как long,
+        # а getIntExtra со стороны службы читает только Integer — код
+        # превращался в 0, и getMediaProjection возвращал null.
+        intent.putExtra(EXTRA_RESULT_CODE, jint(result_code))
         intent.putExtra(EXTRA_RESULT_DATA, data)
         self.startForegroundService(intent)
         self._refresh()
