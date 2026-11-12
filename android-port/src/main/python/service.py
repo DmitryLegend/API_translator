@@ -12,7 +12,7 @@ import threading
 import time
 import traceback
 
-from java import jint, jvoid, jarray, static_proxy, Override
+from java import jint, jvoid, jarray, jbyte, static_proxy, Override
 from java.nio import ByteBuffer
 from android import R
 from android.app import Notification, NotificationChannel, NotificationManager, Service
