@@ -200,6 +200,10 @@ class MainActivity(
         if infos is None or infos.isEmpty():
             return ""
         info = infos.get(0)
+        # Обычные закрытия (смахнул из недавних, «Остановить») — не падение:
+        # их не показываем, иначе экран пугает на ровном месте.
+        if info.getReason() in (0, 1, 9, 10):  # UNKNOWN, EXIT_SELF, USER_*
+            return ""
         # Отчёт показываем один раз: иначе старое падение (история
         # процесса переживает переустановку) висит на экране вечно.
         prefs = self.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -207,14 +211,22 @@ class MainActivity(
         if stamp <= prefs.getLong("exit_seen", 0):
             return ""
         prefs.edit().putLong("exit_seen", stamp).apply()
-        why = {
-            ApplicationExitInfo.REASON_CRASH: "падение (crash)",
-            ApplicationExitInfo.REASON_ANR: "система убила: не отвечал (ANR)",
-            ApplicationExitInfo.REASON_LOW_MEMORY: "не хватило памяти",
-            ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE:
-                "система убила: слишком много ресурсов",
-            ApplicationExitInfo.REASON_OTHER: "система убила процесс",
-        }.get(info.getReason(), "причина: код " + str(info.getReason()))
+        try:
+            why = {
+                ApplicationExitInfo.REASON_CRASH: "падение (crash)",
+                ApplicationExitInfo.REASON_CRASH_NATIVE: "падение нативного кода",
+                ApplicationExitInfo.REASON_ANR: "система убила: не отвечал (ANR)",
+                ApplicationExitInfo.REASON_LOW_MEMORY: "не хватило памяти",
+                ApplicationExitInfo.REASON_INITIALIZATION_FAILURE: "не запустился",
+                ApplicationExitInfo.REASON_PERMISSION_DENIED:
+                    "система убила: не хватило прав",
+                ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE:
+                    "система убила: слишком много ресурсов",
+                ApplicationExitInfo.REASON_DEPENDENCY_DIED: "умер процесс-спутник",
+                ApplicationExitInfo.REASON_SIGNALED: "убит сигналом",
+            }.get(info.getReason(), "система убила процесс")
+        except BaseException:
+            why = "причина: код " + str(info.getReason())
         trace = ""
         try:
             stream = info.getTraceInputStream()
