@@ -3,7 +3,12 @@
 Гоняются без телефона и графики: python3 test_core.py
 """
 
+import sys
 import unittest
+from os.path import dirname, join
+
+# core.py лежит в src/main/python — именно его пакует Chaquopy в APK.
+sys.path.insert(0, join(dirname(__file__), "src", "main", "python"))
 
 from core import (
     Item,
