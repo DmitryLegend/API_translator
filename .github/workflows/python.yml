@@ -68,5 +68,7 @@ jobs:
         if: success()
         with:
           name: app-debug-python
-          path: android-port/build/outputs/apk/debug/app-debug.apk
+          # Имя файла зависит от имени корневого Gradle-проекта, поэтому
+          # берём любым wildcard.
+          path: android-port/build/outputs/apk/debug/*.apk
           if-no-files-found: error
