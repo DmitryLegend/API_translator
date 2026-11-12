@@ -193,6 +193,13 @@ class MainActivity(
         if infos is None or infos.isEmpty():
             return ""
         info = infos.get(0)
+        # Отчёт показываем один раз: иначе старое падение (история
+        # процесса переживает переустановку) висит на экране вечно.
+        prefs = self.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        stamp = info.getTimestamp()
+        if stamp <= prefs.getLong("exit_seen", 0):
+            return ""
+        prefs.edit().putLong("exit_seen", stamp).apply()
         why = {
             ApplicationExitInfo.REASON_CRASH: "падение (crash)",
             ApplicationExitInfo.REASON_ANR: "система убила: не отвечал (ANR)",

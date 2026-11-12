@@ -48,6 +48,11 @@ jobs:
         run: |
           set -o pipefail
           ./gradlew -p android-port --no-daemon assembleDebug 2>&1 | tee python-build.log
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
 
       - name: Повесить лог ошибки к коммиту
         if: steps.build.outcome == 'failure'
