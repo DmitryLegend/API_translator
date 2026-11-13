@@ -99,6 +99,10 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
       - name: Проверить, что секреты подписи на месте
         # Подпись нельзя пропускать: без неё Android просто не поставит файл,
         # а узнать об этом можно только на телефоне. Ловим здесь.
@@ -119,6 +123,37 @@ jobs:
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+
+      - name: Тесты и подписанная сборка Python-версии
+        # В один релиз по тегу уезжают оба APK: Kotlin-версия из корня и
+        # Python-версия (Chaquopy) из android-port.
+        run: |
+          set -e
+          python3 android-port/test_core.py
+          # Ключ вшивается в keys.py так же, как в python.yml перед сборкой.
+          if [ -z "$DEEPL_API_KEY" ]; then
+            echo "::error::Нет секрета DEEPL_API_KEY — добавьте его в Settings → Secrets репозитория"
+            exit 1
+          fi
+          printf '"""Ключ DeepL, вшиваемый при сборке. CI перезаписывает этот файл из секрета."""\nDEEPL_KEY = "%s"\n' "$DEEPL_API_KEY" > android-port/src/main/python/keys.py
+          ./gradlew -p android-port --no-daemon assembleRelease
+        env:
+          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+
+      - name: Проверить подпись Python-версии
+        # Тот же тест, что в шаге публикации для Java-версии: без блока
+        # подписи Android не поставит файл, а узнаем мы об этом только
+        # на телефоне.
+        run: |
+          set -e
+          if ! grep -aq 'APK Sig Block 42' android-port/build/outputs/apk/release/*.apk; then
+            echo "::error::В APK Python-версии нет блока подписи, публиковать нечего"
+            exit 1
+          fi
 
       - name: Проверить то, на что смотрит Google Play
         # targetSdk ниже 36 Android с 31 августа 2026 года Play не принимает.
@@ -153,18 +188,22 @@ jobs:
           # --notes и --generate-notes, а многострочную строку в YAML с
           # отступом иначе не записать — heredoc с нулевым отступом рвёт файл.
           notes=$(printf '%b' \
-            'Скачайте `app-release.apk` и откройте на телефоне — Android спросит разрешение на установку.\n\n' \
+            'Скачайте и откройте на телефоне нужную версию — Android спросит разрешение на установку: `app-release.apk` — Java, `app-release-python.apk` — Python (версии стоят рядом, у них разные имена пакетов).\n\n' \
             'При **первой** установке удалите прежнюю сборку из черновиков: подпись у них разная, и Android не поставит релиз поверх. Дальше версии обновляются штатно.\n\n' \
             'Исходники — пункт **Source code** рядом с этим списком, GitHub прикладывает их к каждому релизу сам.\n')
 
+          # Имя файла Python-версии задаём сами: у Gradle-проекта android-port
+          # другое имя корневого проекта, и файл назывался бы по-своему.
+          cp android-port/build/outputs/apk/release/*.apk app-release-python.apk
+
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" "$apk" --clobber
+            gh release upload "$tag" "$apk" app-release-python.apk --clobber
           else
-            gh release create "$tag" "$apk" \
+            gh release create "$tag" "$apk" app-release-python.apk \
               --title "Подстрочник $tag" \
               --notes "$notes"
           fi
-          echo "APK: $(du -h "$apk" | cut -f1)"
+          echo "APK: $(du -h "$apk" | cut -f1), Python: $(du -h app-release-python.apk | cut -f1)"
 
       - uses: actions/upload-artifact@v4
         with:
