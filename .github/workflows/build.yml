@@ -2,10 +2,8 @@ name: Build APK
 
 on:
   push:
-    branches: [main]
-    # Тег вида v1.0.0 собирает подписанный APK и выкладывает его в Releases.
+    # Тег вида v1.0.4 собирает подписанный APK и выкладывает его в Releases.
     tags: ['v*']
-  workflow_dispatch:
 
 permissions:
   # write, а не read: комментарий к коммиту через API GitHub относится к
@@ -15,78 +13,10 @@ permissions:
   contents: write
 
 jobs:
-  apk:
-    # На теге работает задача release, debug ей не нужен.
-    if: "!startsWith(github.ref, 'refs/tags/')"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - uses: gradle/actions/setup-gradle@v4
-
-      - name: Unit tests and debug build
-        id: build
-        # continue-on-error нужен, чтобы дойти до шага с отчётом: без него шаг
-        # с комментарием просто пропустится.
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          ./gradlew --no-daemon testDebugUnitTest assembleDebug 2>&1 | tee build.log
-        # Ключ DeepL уходит в сборку через переменную окружения и попадает в
-        # BuildConfig. Сам ключ в логах не печатается.
-        env:
-          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
-
-      - name: Повесить лог ошибки к коммиту
-        if: steps.build.outcome == 'failure'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs')
-            const log = fs.existsSync('build.log') ? fs.readFileSync('build.log', 'utf8') : '(нет build.log)'
-            // Забираем хвост лога целиком, без выборочных строк: неизвестно
-            // заранее, как именно отформатирует ошибку та или другая версия
-            // Gradle, а 6000 символов заведомо влезают в комментарий.
-            const body = log.slice(-12000).slice(0, 60000)
-            // Подробности упавших тестов лежат не в консоли Gradle, а в
-            // XML-отчёте JUnit. Достаём оттуда тексты падений.
-            const dir = 'app/build/test-results/testDebugUnitTest'
-            let tests = '(отчёта нет)'
-            if (fs.existsSync(dir)) {
-              const parts = []
-              for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.xml'))) {
-                const xml = fs.readFileSync(dir + '/' + f, 'utf8')
-                for (const m of xml.matchAll(/<failure[\s\S]*?<\/failure>/g)) {
-                  parts.push(f + ':\n' + m[0].replace(/<[^>]+>/g, ' ').replace(/&#10;/g, '\n').trim().slice(0, 900))
-                }
-              }
-              tests = parts.length ? parts.join('\n\n') : '(падений в отчёте нет)'
-            }
-            // Комментарий именно к коммиту, а не к задаче: событие у нас
-            // push, и context.issue там не существует.
-            await github.rest.repos.createCommitComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: context.sha,
-              body: '### Сборка упала\n\n```\n' + body + '\n```\n\n### Тесты\n\n```\n' + tests.slice(0, 20000) + '\n```'
-            })
-
-      - uses: actions/upload-artifact@v4
-        if: success()
-        with:
-          name: app-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-
-  # Релиз собирается только по тегу. Обычный пуш в main даёт debug-сборку для
-  # быстрой проверки, а «официальный» файл появляется на странице Releases
-  # репозитория — оттуда его и качают.
   release:
+    # Релиз собирается только по тегу: обычный пуш в main даёт debug-сборку
+    # через python.yml, а «официальный» файл появляется на странице Releases
+    # репозитория — оттуда его и качают.
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
@@ -97,11 +27,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: gradle/actions/setup-gradle@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.14'
+
+      - uses: gradle/actions/setup-gradle@v4
 
       - name: Проверить, что секреты подписи на месте
         # Подпись нельзя пропускать: без неё Android просто не поставит файл,
@@ -116,21 +46,11 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
 
       - name: Тесты и подписанная сборка
-        run: ./gradlew --no-daemon testReleaseUnitTest assembleRelease
-        env:
-          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
-          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
-          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-
-      - name: Тесты и подписанная сборка Python-версии
-        # В один релиз по тегу уезжают оба APK: Kotlin-версия из корня и
-        # Python-версия (Chaquopy) из android-port.
         run: |
           set -e
           python3 android-port/test_core.py
-          # Ключ вшивается в keys.py так же, как в python.yml перед сборкой.
+          # Ключ вшивается в keys.py: у бесплатного тарифа DeepL ключ ходит
+          # в заголовке запроса, и приложению нужен он, а не ввод вручную.
           if [ -z "$DEEPL_API_KEY" ]; then
             echo "::error::Нет секрета DEEPL_API_KEY — добавьте его в Settings → Secrets репозитория"
             exit 1
@@ -144,26 +64,17 @@ jobs:
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
 
-      - name: Проверить подпись Python-версии
-        # Тот же тест, что в шаге публикации для Java-версии: без блока
-        # подписи Android не поставит файл, а узнаем мы об этом только
-        # на телефоне.
+      - name: Проверить подпись APK
+        # Ищем блок подписи прямо в файле. Подпись v1 клала бы рядом
+        # META-INF/*.SF, но при minSdk 26 она по умолчанию выключена, и там
+        # пусто даже у вполне подписанного APK — на этом уже обжигались.
+        # Подпись v2/v3 кладёт в файл блок с такой вот подписью внутри.
         run: |
           set -e
           if ! grep -aq 'APK Sig Block 42' android-port/build/outputs/apk/release/*.apk; then
-            echo "::error::В APK Python-версии нет блока подписи, публиковать нечего"
+            echo "::error::В APK нет блока подписи, публиковать нечего"
             exit 1
           fi
-
-      - name: Проверить то, на что смотрит Google Play
-        # targetSdk ниже 36 Android с 31 августа 2026 года Play не принимает.
-        # Проверка дешевле ручного взгляда в манифест, поэтому пусть о ней
-        # говорит сама сборка.
-        run: |
-          set -e
-          aapt2=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | tail -1)
-          "$aapt2" dump badging app/build/outputs/apk/release/app-release.apk \
-            | grep -E '^package:|^sdkVersion:|^targetSdkVersion:'
 
       - name: Выложить на страницу Releases
         env:
@@ -173,40 +84,32 @@ jobs:
         run: |
           set -e
           tag="${GITHUB_REF_NAME}"
-          apk=app/build/outputs/apk/release/app-release.apk
 
-          # Ищем блок подписи прямо в файле. Подпись v1 клала бы рядом
-          # META-INF/*.SF, но при minSdk 26 она по умолчанию выключена, и там
-          # пусто даже у вполне подписанного APK — на этом уже обжигались.
-          # Подпись v2/v3 кладёт в файл блок с такой вот подписью внутри.
-          if ! grep -aq 'APK Sig Block 42' "$apk"; then
-            echo "::error::В APK нет блока подписи, публиковать нечего"
-            exit 1
-          fi
+          # Имя файла задаём сами: у Gradle-проекта android-port другое имя
+          # корневого проекта, и файл назывался бы по-своему. Кotlin-версия
+          # снята с выпуска; её файлы остались в релизах до v1.0.3 включительно.
+          cp android-port/build/outputs/apk/release/*.apk app-release-python.apk
 
           # Текст собираем через printf с \n: gh не берёт одновременно
           # --notes и --generate-notes, а многострочную строку в YAML с
           # отступом иначе не записать — heredoc с нулевым отступом рвёт файл.
           notes=$(printf '%b' \
-            'Скачайте и откройте на телефоне нужную версию — Android спросит разрешение на установку: `app-release.apk` — Java, `app-release-python.apk` — Python (версии стоят рядом, у них разные имена пакетов).\n\n' \
+            'Скачайте `app-release-python.apk` и откройте на телефоне — Android спросит разрешение на установку.\n\n' \
+            'Раньше рядом выходила ещё и Kotlin-версия (`app-release.apk`): она снята с выпуска, её файлы лежат в релизах до v1.0.3. Имена пакетов разные, поэтому обе версии могли стоять на телефоне одновременно.\n\n' \
             'При **первой** установке удалите прежнюю сборку из черновиков: подпись у них разная, и Android не поставит релиз поверх. Дальше версии обновляются штатно.\n\n' \
             'Исходники — пункт **Source code** рядом с этим списком, GitHub прикладывает их к каждому релизу сам.\n')
 
-          # Имя файла Python-версии задаём сами: у Gradle-проекта android-port
-          # другое имя корневого проекта, и файл назывался бы по-своему.
-          cp android-port/build/outputs/apk/release/*.apk app-release-python.apk
-
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" "$apk" app-release-python.apk --clobber
+            gh release upload "$tag" app-release-python.apk --clobber
           else
-            gh release create "$tag" "$apk" app-release-python.apk \
+            gh release create "$tag" app-release-python.apk \
               --title "Подстрочник $tag" \
               --notes "$notes"
           fi
-          echo "APK: $(du -h "$apk" | cut -f1), Python: $(du -h app-release-python.apk | cut -f1)"
+          echo "APK: $(du -h app-release-python.apk | cut -f1)"
 
       - uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: app/build/outputs/apk/release/app-release.apk
+          path: android-port/build/outputs/apk/release/*.apk
           if-no-files-found: error

@@ -1,5 +1,4 @@
 .gradle/
-.kotlin/
 build/
 local.properties
 *.jks
@@ -9,3 +8,4 @@ local.properties
 captures/
 __pycache__/
 *.pyc
+.ruff_cache/
