@@ -4,6 +4,9 @@
 на экране и копируется в буфер обмена: его можно вставить в письмо или чат.
 """
 
+# noinspection PyUnresolvedReferences
+# Модули java/android/com.google существуют только внутри APK (Chaquopy),
+# поэтому IDE не может их разрезолвить — это не ошибка.
 from java import jint, jvoid, jarray, static_proxy, Override
 from java.io import BufferedReader, InputStreamReader
 from java.lang import String

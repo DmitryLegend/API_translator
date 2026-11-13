@@ -8,6 +8,9 @@
 Chaquopy нет обёрток над JNI-классами оригинала.
 """
 
+# noinspection PyUnresolvedReferences
+# Модули java/android/com.google существуют только внутри APK (Chaquopy),
+# поэтому IDE не может их разрезолвить — это не ошибка.
 import threading
 import time
 import traceback
@@ -21,7 +24,7 @@ from android.content.pm import ServiceInfo
 from android.graphics import Bitmap, PixelFormat, Point
 from android.hardware.display import DisplayManager
 from android.media import ImageReader
-from android.media.projection import MediaProjection, MediaProjectionManager
+from android.media.projection import MediaProjection
 from android.os import Build, Handler, IBinder, Looper, SystemClock
 from android.util import Log
 from android.view import Display, Surface

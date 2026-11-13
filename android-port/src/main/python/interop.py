@@ -4,6 +4,9 @@
 сканирует только main и service, а динамические прокси — среда исполнения.
 """
 
+# noinspection PyUnresolvedReferences
+# Модули java/android существуют только внутри APK (Chaquopy),
+# поэтому IDE не может их разрезолвить — это не ошибка.
 from java import dynamic_proxy
 from java.lang import Runnable
 from android.view import View
