@@ -174,7 +174,8 @@ class FitSizeTest(unittest.TestCase):
 class PipelineTest(unittest.TestCase):
     """Дымовой тест конвейера: стабилизация, отправка в DeepL, отрисовка."""
 
-    def _pipeline(self, translate):
+    @staticmethod
+    def _pipeline(translate):
         return Pipeline(key="k:fx", translate=translate)
 
     def test_three_frames_then_translate_once(self):
@@ -261,8 +262,8 @@ class DeeplTranslateTest(unittest.TestCase):
     """Сетевой код проверяется по контракту ошибки, без настоящего запроса."""
 
     def test_free_host_by_key_suffix(self):
-        # Проверка адреса — см. core.deepl_translate; здесь только контракт
-        # возвращаемого значения при сетевом сбое (нет сети в тестах).
+        # Запрос с битым ключом уходит в сеть, но контракт ошибки от этого
+        # не меняется: при любом сбое возвращается (None, текст ошибки).
         texts, error = deepl_translate("broken-key:fx", ["test"])
         if texts is None:
             self.assertTrue(error.startswith(("сеть:", "DeepL ")))
