@@ -204,7 +204,10 @@ def deep_l(cfg: Config, chunks: list[str]) -> Reply:
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
-        detail = e.read().decode("utf-8", "replace")[:300]
+        try:
+            detail = e.read().decode("utf-8", "replace")[:300]
+        finally:
+            e.close()
         return Reply("", False, f"DeepL вернул {e.code}: {detail}")
     except (urllib.error.URLError, TimeoutError, ValueError) as e:
         return Reply("", False, f"сеть не ответила: {e}")

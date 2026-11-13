@@ -236,6 +236,9 @@ def deepl_translate(key: str, chunks: list):
             detail = e.read().decode("utf-8", "replace")[:120]
         except Exception:
             detail = ""
+        finally:
+            # Не закрытый ответ уезжает в GC с ResourceWarning (Python 3.14).
+            e.close()
         return None, f"DeepL {e.code}: {detail}"
     except Exception as e:
         return None, f"сеть: {type(e).__name__}: {e}"
