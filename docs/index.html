@@ -297,4 +297,1071 @@ select{width:100%;padding:.65rem .8rem;border-radius:var(--r-s);border:1px solid
 .dl{border-radius:var(--r-l);padding:clamp(18px,2.6vw,28px)}
 .dl-head{display:flex;flex-wrap:wrap;gap:1rem;align-items:center;justify-content:space-between;margin-bottom:1rem}
 .dl-head h3{font-size:clamp(1.2rem,2.4vw,1.6rem)}
-.dl-meta{display:flex;flex-wrap:wrap;gap:.4rem 1.2rem;font-family:var(--mono);font-size:.73rem;color:var(--on
+.dl-meta{display:flex;flex-wrap:wrap;gap:.4rem 1.2rem;font-family:var(--mono);font-size:.73rem;color:var(--on-var);margin-bottom:.9rem}
+.dl-meta b{color:var(--on-surface);font-weight:500}
+.sha{display:flex;flex-wrap:wrap;gap:.7rem;align-items:center;border-top:1px solid var(--outline-var);padding-top:.9rem}
+.sha code{font-family:var(--mono);font-size:.68rem;color:var(--on-var);word-break:break-all;flex:1 1 240px}
+.files{display:grid;gap:.55rem;grid-template-columns:1fr;margin-top:.9rem}
+.file{display:flex;align-items:center;justify-content:space-between;gap:1rem;background:var(--sc);border:1px solid var(--outline-var);border-radius:var(--r-s);padding:.75rem 1rem;text-decoration:none;transition:border-color .2s,transform .2s var(--spring)}
+.file:hover{border-color:var(--accent);transform:translateY(-2px)}
+.file .n{font-family:var(--mono);font-size:.78rem}
+.file .s{font-family:var(--mono);font-size:.68rem;color:var(--on-var);white-space:nowrap}
+.foot{display:flex;flex-wrap:wrap;gap:.6rem 1.4rem;justify-content:space-between;align-items:center;border-top:1px solid var(--outline-var);margin-top:1.4rem;padding-top:1rem;font-size:.84rem;color:var(--on-var)}
+.foot a{color:var(--on-surface);text-decoration:none;border-bottom:1px solid var(--outline)}
+.foot a:hover{color:var(--accent);border-color:var(--accent)}
+.flinks{display:flex;flex-wrap:wrap;gap:.5rem 1.2rem}
+
+.rail{position:fixed;z-index:35;right:18px;top:50%;transform:translateY(-50%);flex-direction:column;gap:2px;padding:10px 8px;border-radius:99px}
+.rail button{position:relative;width:26px;height:26px;border:0;background:transparent;cursor:pointer;display:grid;place-items:center;border-radius:50%}
+.rail i{width:8px;height:8px;border-radius:50%;background:var(--on-var);opacity:.5;transition:all .35s var(--spring);display:block}
+.rail button:hover i{opacity:1;background:var(--accent);transform:scale(1.25)}
+.rail button[aria-current="true"] i{width:10px;height:22px;border-radius:99px;background:var(--accent);opacity:1;box-shadow:0 0 14px var(--accent)}
+.rail button::after{content:attr(data-label);position:absolute;right:34px;top:50%;transform:translateY(-50%);white-space:nowrap;font-family:var(--mono);font-size:.68rem;padding:.3rem .6rem;border-radius:8px;background:var(--glass-2);border:1px solid var(--glass-brd);color:var(--on-surface);opacity:0;pointer-events:none;transition:opacity .2s}
+.rail button:hover::after{opacity:1}
+.dock{position:fixed;z-index:36;left:50%;bottom:16px;transform:translateX(-50%);align-items:center;gap:10px;padding:8px;border-radius:99px}
+.dock-mid{display:grid;text-align:center;padding:0 .5rem;min-width:118px}
+.dock-mid .c{font-family:var(--mono);font-size:.72rem;color:var(--accent);letter-spacing:.08em}
+.dock-mid .n{font-size:.78rem;font-weight:600;line-height:1.2}
+.dock .icon-btn{width:38px;height:38px;border-radius:50%}
+.toast{position:fixed;z-index:60;left:50%;bottom:96px;transform:translate(-50%,12px);background:var(--sc-highest);color:var(--on-surface);border:1px solid var(--glass-brd);font-size:.86rem;padding:.65rem 1.15rem;border-radius:99px;opacity:0;pointer-events:none;transition:opacity .25s,transform .3s var(--spring)}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+@media (min-width:760px){
+.grid2{grid-template-columns:1fr 1fr}
+.limits{grid-template-columns:1fr 1fr}
+.files{grid-template-columns:1fr 1fr}
+.hero{grid-template-columns:1.15fr .85fr}
+.codegrid{grid-template-columns:.9fr 1.1fr}
+}
+@media (min-width:1280px){html.deck-on .rail{display:flex}}
+@media (max-width:1079px){.tabs{display:none}.menu-btn{display:grid}.topbar{gap:8px}}
+@media (max-width:600px){
+:root{--top:84px;--bottom:92px}
+.topbar{top:8px;left:8px;right:8px;height:58px;padding:0 8px 0 12px;border-radius:24px}
+.brand span{display:none}
+.top-actions .btn{display:none}
+.dock{bottom:12px}
+.console{height:150px}
+.hero h1{font-size:clamp(2.6rem,13vw,3.4rem)}
+.slide{padding:92px 0 44px}
+}
+@media (prefers-reduced-motion:reduce){
+.blob,.sweep,.scanline,.hint svg{animation:none}
+html.deck-on .slide.in-up,html.deck-on .slide.in-down,html.deck-on .slide.out-up,html.deck-on .slide.out-down,html.deck-on .slide.is-active .stg{animation:none}
+.btn:hover,.file:hover,.frow:hover,.node.hot{transform:none}
+}
+</style>
+</head>
+<body>
+
+<div class="bg" aria-hidden="true">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div>
+  <div class="mesh"></div><div class="sweep"></div><div class="grain"></div>
+</div>
+
+<header class="topbar glass">
+  <a class="brand" href="#start" data-go="0">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#0A3A44"/><rect x="7" y="10" width="18" height="3.4" rx="1.7" fill="#38D6E8"/><rect x="7" y="18" width="12" height="3.4" rx="1.7" fill="#B6F24A"/></svg>
+    <span>Подстрочник</span>
+  </a>
+  <nav class="tabs" id="tabs" aria-label="Разделы">
+    <button class="tab" data-go="0">Старт</button>
+    <button class="tab" data-go="1">Идея</button>
+    <button class="tab" data-go="2">Конвейер</button>
+    <button class="tab" data-go="3">Установка</button>
+    <button class="tab" data-go="4">Журнал</button>
+    <button class="tab" data-go="5">Код</button>
+    <button class="tab" data-go="6">Границы</button>
+    <button class="tab" data-go="7">Скачать</button>
+  </nav>
+  <div class="top-actions">
+    <button class="icon-btn" id="modeBtn" aria-pressed="true" aria-label="Режим слайдов" title="Слайды / обычная прокрутка">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/></svg>
+    </button>
+    <button class="icon-btn" id="themeBtn" aria-pressed="false" aria-label="Переключить тему" title="Тёмная / светлая тема">
+      <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg>
+      <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>
+    </button>
+    <a class="btn filled sm" href="#get" data-go="7"><span>Скачать</span></a>
+    <button class="icon-btn menu-btn" id="menuBtn" aria-expanded="false" aria-controls="sheet" aria-label="Все разделы">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet glass" id="sheet" hidden><div class="sheet-list" id="sheetList"></div></div>
+
+<main id="deck">
+
+<section class="slide" id="start" data-name="Старт" aria-labelledby="h-start">
+  <div class="inner">
+    <div class="hero">
+      <div>
+        <div class="eyebrow stg" style="--i:0"><span class="dot"></span>Android · оверлей · Python внутри APK</div>
+        <h1 id="h-start" class="stg" style="--i:1" tabindex="-1">Подстрочник</h1>
+        <p class="tag stg" style="--i:2">Перевод текста прямо на экране телефона.</p>
+        <div class="gloss stg" style="--i:3">
+          <div class="en">Subtitles, but for everything on your screen.</div>
+          <div class="ru">Субтитры — но для всего, что есть на экране.</div>
+        </div>
+        <p class="lead stg" style="--i:4">Открыли YouTube, игру или чужое приложение — Подстрочник распознаёт надписи, переводит их на русский и пишет перевод на место оригинала. Оригинальная строка закрашивается цветом собственного фона, а не закрывается непрозрачной плашкой: картинка остаётся живой.</p>
+        <div class="cta stg" style="--i:5">
+          <a class="btn filled" href="https://github.com/DmitryLegend/API_translator/releases/download/v1.0.3/app-release-python.apk"><span>Скачать APK · v1.0.3</span></a>
+          <a class="btn tonal" href="https://github.com/DmitryLegend/API_translator"><span>Исходный код</span></a>
+        </div>
+        <div class="chips stg" style="--i:6">
+          <span class="chip"><b>37,4 МБ</b> файл</span>
+          <span class="chip"><b>Android 8.0+</b></span>
+          <span class="chip"><b>arm64-v8a</b></span>
+          <span class="chip"><b>Python 3.14</b> Chaquopy</span>
+          <span class="chip"><b>42</b> проверки</span>
+          <span class="chip">обновлено <b>13.11.2026</b></span>
+        </div>
+        <div class="hint stg" style="--i:7">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
+          колесо, свайп или ↓ — слайды переключаются
+        </div>
+      </div>
+      <div class="phone-wrap stg" style="--i:4">
+        <svg class="phone" viewBox="0 0 300 540" role="img" aria-label="Схема: телефон с распознанными надписями и русским переводом поверх них">
+          <defs>
+            <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#123640"/><stop offset="1" stop-color="#1E5A5E"/></linearGradient>
+            <linearGradient id="dusk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E8B27A"/><stop offset="1" stop-color="#C86A5A"/></linearGradient>
+            <clipPath id="scr"><rect x="14" y="14" width="272" height="512" rx="26"/></clipPath>
+          </defs>
+          <rect x="4" y="4" width="292" height="532" rx="34" fill="#0A2228" stroke="#2A4C55" stroke-width="2"/>
+          <g clip-path="url(#scr)">
+            <rect x="14" y="14" width="272" height="512" fill="url(#sky)"/>
+            <rect x="14" y="150" width="272" height="240" fill="url(#dusk)" opacity=".9"/>
+            <circle cx="212" cy="212" r="34" fill="#F6E3C4" opacity=".95"/>
+            <path d="M14 330 L86 286 L150 330 L214 292 L286 336 L286 390 L14 390 Z" fill="#6E5B49"/>
+            <rect x="14" y="386" width="272" height="140" fill="#22403A"/>
+            <rect x="30" y="42" width="120" height="26" rx="8" fill="#04171B" opacity=".55"/>
+            <text x="42" y="60" font-family="JetBrains Mono, monospace" font-size="13" fill="#B6F24A">SCORE 1200</text>
+            <rect x="26" y="38" width="128" height="34" rx="6" fill="none" stroke="#38D6E8" stroke-width="1.6" stroke-dasharray="5 4"/>
+            <path d="M26 44v-6h6M154 44v-6h-6M26 66v6h6M154 66v6h-6" stroke="#38D6E8" stroke-width="2.4" fill="none"/>
+            <rect x="34" y="418" width="232" height="46" fill="#22403A"/>
+            <text x="150" y="447" text-anchor="middle" font-family="Manrope, sans-serif" font-size="17" font-weight="700" fill="#B6F24A">Привет, путник</text>
+            <rect x="30" y="414" width="240" height="54" rx="6" fill="none" stroke="#B6F24A" stroke-width="1.4" opacity=".55"/>
+            <text x="150" y="492" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#9FB8BD">ML Kit → DeepL → оверлей</text>
+            <rect class="scanline" x="14" y="20" width="272" height="3" fill="#38D6E8" opacity=".85"/>
+          </g>
+          <rect x="118" y="20" width="64" height="7" rx="3.5" fill="#0A2228"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="idea" data-name="Идея" aria-labelledby="h-idea">
+  <div class="inner">
+    <div class="shead stg" style="--i:0"><span class="num">01</span><h2 id="h-idea" tabindex="-1">Плашка против фона</h2></div>
+    <p class="lead stg" style="--i:1">Обычный экранный переводчик кладёт поверх кадра прямоугольник — и кусок сцены исчезает под серым блоком. Подстрочник берёт медианный цвет пикселей вокруг букв и закрашивает оригинал именно им. Тяни разделитель: слева плашка, справа заливка цветом фона.</p>
+    <div class="grid2" style="margin-top:1.1rem">
+      <div class="stg" style="--i:2">
+        <div class="cmp" id="cmp">
+          <svg class="scene" viewBox="0 0 400 240" preserveAspectRatio="none" aria-hidden="true">
+            <defs><linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E8B27A"/><stop offset="1" stop-color="#D98C63"/></linearGradient></defs>
+            <rect width="400" height="240" fill="url(#sky2)"/>
+            <circle cx="300" cy="70" r="30" fill="#F6E3C4"/>
+            <path d="M0 150 L90 108 L170 150 L250 112 L400 158 L400 170 L0 170 Z" fill="#6E5B49"/>
+            <rect y="170" width="400" height="70" fill="#2E4A3C"/>
+            <rect x="40" y="182" width="320" height="38" fill="#2E4A3C"/>
+            <text x="200" y="207" text-anchor="middle" font-family="Manrope, sans-serif" font-size="17" font-weight="700" fill="#F3EEE4">Привет, путник</text>
+          </svg>
+          <div class="cmp-a">
+            <svg class="scene" viewBox="0 0 400 240" preserveAspectRatio="none" aria-hidden="true">
+              <defs><linearGradient id="sky3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E8B27A"/><stop offset="1" stop-color="#D98C63"/></linearGradient></defs>
+              <rect width="400" height="240" fill="url(#sky3)"/>
+              <circle cx="300" cy="70" r="30" fill="#F6E3C4"/>
+              <path d="M0 150 L90 108 L170 150 L250 112 L400 158 L400 170 L0 170 Z" fill="#6E5B49"/>
+              <rect y="170" width="400" height="70" fill="#2E4A3C"/>
+              <rect x="40" y="182" width="320" height="38" rx="3" fill="#8C8C8C"/>
+              <text x="200" y="207" text-anchor="middle" font-family="Manrope, sans-serif" font-size="17" font-weight="700" fill="#FFFFFF">Привет, путник</text>
+            </svg>
+          </div>
+          <span class="cmp-tag l">Плашка</span>
+          <span class="cmp-tag r">Цветом фона</span>
+          <div class="cmp-bar"></div>
+          <div class="cmp-handle" id="cmpHandle" role="slider" tabindex="0" aria-label="Разделитель сравнения" aria-valuemin="4" aria-valuemax="96" aria-valuenow="52" aria-valuetext="52 процента">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l-4 6 4 6M15 6l4 6-4 6"/></svg>
+          </div>
+        </div>
+        <p class="tiny" style="margin-top:.7rem">Схема, а не скриншот приложения. Стрелки ← → двигают разделитель, если он в фокусе.</p>
+      </div>
+      <div class="panel ctrl stg" style="--i:3">
+        <div class="ctrl-row">
+          <div class="ctrl-lab"><span>СПОСОБ ВЗЯТЬ ЦВЕТ</span></div>
+          <div class="seg" role="group" aria-label="Способ взять цвет фона">
+            <button id="mMedian" aria-pressed="true">Медиана</button>
+            <button id="mMean" aria-pressed="false">Среднее</button>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-lab"><span>ПОЛОСА ВОКРУГ РАМКИ</span><b id="bandVal">3 px</b></div>
+          <input type="range" id="band" min="1" max="6" step="1" value="3" aria-label="Ширина полосы вокруг рамки в пикселях">
+        </div>
+        <label class="switch"><input type="checkbox" id="glare"><span class="track"><span class="knob"></span></span>Блик рядом с надписью</label>
+        <div class="swatch-row">
+          <div class="swatch" id="swatch" style="background:#2E4A3C"></div>
+          <div>
+            <div class="mono" style="font-size:.86rem" id="swatchHex">#2E4A3C</div>
+            <div class="tiny" id="swatchNote">Медиана игнорирует одиночный яркий пиксель.</div>
+          </div>
+        </div>
+        <p class="tiny" style="margin:0">В коде полоса идёт снаружи рамки и начинается с отступа в один пиксель: на самой границе ещё буквы, и медиана по ним ответила бы «текст тёмный», а не «фон такой-то».</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="how" data-name="Конвейер" aria-labelledby="h-how">
+  <div class="inner">
+    <div class="shead stg" style="--i:0"><span class="num">02</span><h2 id="h-how" tabindex="-1">Четыре шага на каждый кадр</h2></div>
+    <p class="lead stg" style="--i:1">Конвейер живёт в рабочем потоке и просыпается раз в 700 миллисекунд. Главный поток только подменяет готовую картинку оверлея. Ниже — модель на настоящих константах проекта, не запись работы приложения.</p>
+    <div class="pipe stg" style="--i:2" id="pipe">
+      <div class="node"><div class="k">ШАГ 01</div><h3>Кадр</h3><p>Виртуальный дисплей отдаёт снимок. Размер спрашивается каждый кадр, при повороте захват пересоздаётся.</p><div class="meta">ImageReader · RGBA_8888</div></div>
+      <div class="node"><div class="k">ШАГ 02</div><h3>Распознавание</h3><p>ML Kit возвращает строки и координаты. Мусор отсеивается, русское пропускается.</p><div class="meta">3 кадра стабильности</div></div>
+      <div class="node"><div class="k">ШАГ 03</div><h3>Перевод</h3><p>В DeepL уходят только строки, которые держатся на экране. Пачками, а не по одной.</p><div class="meta">до 40 строк в запросе</div></div>
+      <div class="node"><div class="k">ШАГ 04</div><h3>Оверлей</h3><p>Оригинал закрашен цветом фона, перевод вписан в рамку бинарным поиском по кеглю.</p><div class="meta">перерисовка при изменении</div></div>
+    </div>
+    <div class="grid2 stg" style="--i:3">
+      <div>
+        <div class="console" id="console"></div>
+        <div class="counters" id="counters"></div>
+      </div>
+      <div class="panel">
+        <div class="ctrl-bar" style="margin-top:0">
+          <button class="btn tonal sm" id="playBtn" aria-pressed="true"><span>Пауза</span></button>
+          <button class="btn outlined sm" id="resetBtn"><span>Сброс</span></button>
+        </div>
+        <div class="ctrl-row" style="margin-top:1rem">
+          <div class="ctrl-lab"><span>ИНТЕРВАЛ КАДРА</span><b id="speedVal">700 мс</b></div>
+          <input type="range" id="speed" min="400" max="1200" step="50" value="700" aria-label="Интервал между кадрами в миллисекундах">
+        </div>
+        <p class="tiny" style="margin:.8rem 0 0">SCAN_MS 700 · STABLE_SCANS 3 · LINE_TTL_MS 4000 · BATCH 40 · MIN_BOX_PX 26 — константы из <span class="mono">core.py</span>. В сеть уходит только текст: кадры никуда не выгружаются.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="install" data-name="Установка" aria-labelledby="h-install">
+  <div class="inner">
+    <div class="shead stg" style="--i:0"><span class="num">03</span><h2 id="h-install" tabindex="-1">Установка за пять шагов</h2></div>
+    <p class="lead stg" style="--i:1">Отмечай пройденное — прогресс сохранится в этом браузере, можно вернуться к списку с телефона посреди установки.</p>
+    <div class="grid2" style="margin-top:1.1rem">
+      <div class="stg" style="--i:2">
+        <ul class="steps" id="steps">
+          <li class="step-row" data-step="0"><span class="cbox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l6 6L20 6"/></svg></span><span><span class="idx">ШАГ 01</span><span class="st">Скачайте <span class="mono">app-release-python.apk</span> со страницы Releases и откройте файл в памяти телефона — обычно это папка Download.</span></span></li>
+          <li class="step-row" data-step="1"><span class="cbox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l6 6L20 6"/></svg></span><span><span class="idx">ШАГ 02</span><span class="st">Разрешите установку из неизвестных источников для того приложения, из которого открываете файл: «Файлы», «Диск» или браузер.</span></span></li>
+          <li class="step-row" data-step="2"><span class="cbox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l6 6L20 6"/></svg></span><span><span class="idx">ШАГ 03</span><span class="st">Откройте Подстрочник и нажмите «Запустить перевод». Ключ DeepL уже вшит в сборку, вводить его руками не нужно.</span></span></li>
+          <li class="step-row" data-step="3"><span class="cbox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l6 6L20 6"/></svg></span><span><span class="idx">ШАГ 04</span><span class="st">Разрешите показ поверх других приложений — без этого перевод не нарисуется поверх YouTube или игры.</span></span></li>
+          <li class="step-row" data-step="4"><span class="cbox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l6 6L20 6"/></svg></span><span><span class="idx">ШАГ 05</span><span class="st">Согласитесь на захват экрана и сразу вернитесь в приложение. Его можно свернуть: перевод продолжит работать.</span></span></li>
+        </ul>
+        <div class="bar"><i id="installBar"></i></div>
+        <div class="ctrl-bar" style="margin-top:.2rem">
+          <span class="mono tiny" id="installCount">0 из 5 готово</span>
+          <button class="btn outlined sm" id="installReset"><span>Сбросить</span></button>
+        </div>
+      </div>
+      <div class="stg" style="--i:3">
+        <div class="perm"><h4>Захват экрана</h4><p>Стандартный запрос Android на демонстрацию экрана. Без него система не даст увидеть, что нарисовано. Спрашивается один раз.</p></div>
+        <div class="perm"><h4>Показ поверх других приложений</h4><p>В настройках называется «Отображение поверх других приложений». Нужно, чтобы перевод рисовался поверх чужого окна.</p></div>
+        <div class="perm"><h4>Уведомления</h4><p>Android требует видимое уведомление у любой фоновой службы. В нём же кнопка «Остановить».</p></div>
+        <div class="note">Оверлей не перехватывает касания: окно создаётся с флагами NOT_TOUCHABLE и NOT_FOCUSABLE, поэтому управление в игре под ним продолжает работать.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="log" data-name="Журнал" aria-labelledby="h-log">
+  <div class="inner">
+    <div class="shead stg" style="--i:0"><span class="num">04</span><h2 id="h-log" tabindex="-1">Что пошло не так</h2></div>
+    <p class="lead stg" style="--i:1">Не опечатки, а настоящие ошибки: из-за них приложение либо не запускалось, либо переводило чушь, либо падало. Этот журнал — самая честная часть проекта.</p>
+    <div class="filters stg" style="--i:2" id="filters" role="group" aria-label="Фильтр журнала">
+      <button class="fchip" data-cat="all" aria-pressed="true">Все · 8</button>
+      <button class="fchip" data-cat="crash" aria-pressed="false">Падения · 2</button>
+      <button class="fchip" data-cat="coords" aria-pressed="false">Координаты · 2</button>
+      <button class="fchip" data-cat="text" aria-pressed="false">Текст · 2</button>
+      <button class="fchip" data-cat="system" aria-pressed="false">Система · 1</button>
+      <button class="fchip" data-cat="diag" aria-pressed="false">Диагностика · 1</button>
+    </div>
+    <div class="loglist stg" style="--i:3" id="loglist">
+      <article class="entry open" data-cat="crash">
+        <button class="entry-btn" aria-expanded="true"><span class="idx">01</span><span class="ttl">Процесс умирал нативно, мимо try/catch</span><span class="cat">падение</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="entry-body">
+          <p>ML Kit отказался брать кадры <code>RGBA_8888</code>: «Only JPEG and YUV_420_888 are supported now». Формат вернули к <code>YUV_420_888</code> — и процесс начал падать сигналом 6, SIGABRT, внутри нативного кода Android. Ни исключения, ни лога: экран просто гас.</p>
+          <p class="fix">→ Кадр снова RGBA_8888, Bitmap собирается вручную, в ML Kit уходит уже готовый Bitmap. Медленнее, зато предсказуемо — и появился доступ к цвету пикселя.</p>
+        </div>
+      </article>
+      <article class="entry" data-cat="coords">
+        <button class="entry-btn" aria-expanded="false"><span class="idx">02</span><span class="ttl">Снимок экрана впихивали в чужой размер</span><span class="cat">координаты</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="entry-body">
+          <p>Размер буфера вычислялся один раз, при нажатии кнопки, и намертво запекался в ImageReader. Стоило повернуть телефон — Android вписывал альбомную картинку в портретный буфер с чёрными полями, и распознавание возвращало координаты уменьшенной копии. Перевод рисовался мимо настоящих надписей.</p>
+          <p class="fix">→ Размер экрана спрашивается каждый кадр, при повороте захват пересоздаётся, конвейер сбрасывает найденные строки.</p>
+        </div>
+      </article>
+      <article class="entry" data-cat="text">
+        <button class="entry-btn" aria-expanded="false"><span class="idx">03</span><span class="ttl">Приложение выдумывало текст, которого нет</span><span class="cat">текст</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="entry-body">
+          <p>Строки сравнивались точно, а распознавание дрожит: «Hello, world» приходит то как «Неllo, wоrld», то без запятой. Каждая описка считалась новой строкой, рамка бралась из текущего кадра и ездила на пару пикселей, оверлей перерисовывался всегда.</p>
+          <p class="fix">→ Ключ строки без регистра и знаков, ограниченное расстояние Левенштейна, рамка фиксируется при первом появлении, перерисовка только при реальном изменении.</p>
+        </div>
+      </article>
+      <article class="entry" data-cat="text">
+        <button class="entry-btn" aria-expanded="false"><span class="idx">04</span><span class="ttl">Мусор съедал лимит DeepL</span><span class="cat">текст</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="entry-body">
+          <p>Каждая дрожь распознавания — это запрос в API. Бесплатный тариф даёт 500 000 символов в месяц, и выдуманные строки съедали его быстрее настоящего перевода.</p>
+          <p class="fix">→ Строка уходит на перевод, только если продержалась три кадра подряд. Русский текст отсеивается до запроса.</p>
+        </div>
+      </article>
+      <article class="entry" data-cat="coords">
+        <button class="entry-btn" aria-expanded="false"><span class="idx">05</span><span class="ttl">Закрашивали текст серым пятном</span><span class="cat">координаты</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="entry-body">
+          <p>Цвет фона брался по кольцу точек вокруг рамки, и обход начинался с нулевого отступа — то есть на самой границе букв. Медиана выбирала не фон, а полупрозрачные остатки текста.</p>
+          <p class="fix">→ Обход сдвинут на один пиксель наружу от рамки. Ошибку нашли три теста, которые поначалу были написаны неверно и «подтверждали» неправильное поведение.</p>
+        </div>
+      </article>
+      <article class="entry" data-cat="system">
+        <button class="entry-btn" aria-expanded="false"><span class="idx">06</span><span class="ttl">Android переписал сигнатуру метода</span><span class="cat">система</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="entry-body">
+          <p>На Android 15+ у <code>createVirtualDisplay</code> стало восемь параметров: после dpi идёт <code>int flags</code>. Старый вызов из шести аргументов падал на старте.</p>
+          <p class="fix">→ Вызов обновлён, флаги AUTO_MIRROR и PRESENTATION передаются явно.</p>
+        </div>
+      </article>
+      <article class="entry" data-cat="crash">
+        <button class="entry-btn" aria-expanded="false"><span class="idx">07</span><span class="ttl">Порядок запуска службы</span><span class="cat">падение</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="entry-body">
+          <p>На Android 14+ <code>startForeground</code> для типа «захват экрана» обязан вызваться раньше, чем берётся сам захват. Наоборот — система выбрасывает исключение.</p>
+          <p class="fix">→ Сначала уведомление и foreground, потом getMediaProjection. Порядок зафиксирован в комментарии, чтобы не потерялся.</p>
+        </div>
+      </article>
+      <article class="entry" data-cat="diag">
+        <button class="entry-btn" aria-expanded="false"><span class="idx">08</span><span class="ttl">С телефона нельзя прочитать логи</span><span class="cat">диагностика</span><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="entry-body">
+          <p>Собрать и запустить из Termux можно, а увидеть, что происходит внутри приложения, — нет: ни процессов, ни системного лога, ни логов Actions.</p>
+          <p class="fix">→ Диагностика встроена в приложение: счётчики на главном экране, причина падения из ApplicationExitInfo, копирование отчёта в буфер обмена. Упавший CI отчитывается комментарием к коммиту.</p>
+        </div>
+      </article>
+    </div>
+    <p class="tiny stg" style="--i:4;margin-top:.7rem" id="logCount">Показано 8 из 8 записей.</p>
+  </div>
+</section>
+
+<section class="slide" id="code" data-name="Код" aria-labelledby="h-code">
+  <div class="inner">
+    <div class="shead stg" style="--i:0"><span class="num">05</span><h2 id="h-code" tabindex="-1">Как устроен код</h2></div>
+    <p class="lead stg" style="--i:1">Python работает на телефоне через Chaquopy: интерпретатор упакован внутрь APK, Activity и Service объявлены статическими прокси. Выбери файл — размеры настоящие, из репозитория.</p>
+    <div class="codegrid stg" style="--i:2;margin-top:1rem">
+      <div class="filelist" id="filelist" role="group" aria-label="Файлы проекта"></div>
+      <div class="panel detail" id="detail"></div>
+    </div>
+    <div class="stats stg" style="--i:3">
+      <div><div class="v">42</div><div class="l">ПРОВЕРКИ ЛОГИКИ</div></div>
+      <div><div class="v">0</div><div class="l">СТРОК ANDROID В CORE</div></div>
+      <div><div class="v">3.14</div><div class="l">PYTHON В APK</div></div>
+      <div><div class="v">26</div><div class="l">MIN SDK</div></div>
+      <div><div class="v">36</div><div class="l">TARGET SDK</div></div>
+    </div>
+    <p class="tiny stg" style="--i:4;margin-top:.8rem">Сборка целиком в GitHub Actions: APK и десктопные пакеты собираются в облаке, локально ставить ничего не нужно.</p>
+  </div>
+</section>
+
+<section class="slide" id="limits" data-name="Границы" aria-labelledby="h-limits">
+  <div class="inner">
+    <div class="shead stg" style="--i:0"><span class="num">06</span><h2 id="h-limits" tabindex="-1">Ограничения — честно</h2></div>
+    <p class="lead stg" style="--i:1">Ни один пункт не спрятан в мелкий шрифт. Это границы самой технологии: знать о них лучше до установки, а не после.</p>
+    <div class="grid2" style="margin-top:1rem">
+      <div class="limits stg" style="--i:2">
+        <div class="lim hard"><h3>Только латиница, кириллица, греческий</h3><p>Так умеет встроенный движок ML Kit. Японский, корейский и китайский он не прочитает: нужен отдельный модуль, и он заметно тяжелее.</p></div>
+        <div class="lim hard"><h3>Защищённое видео не переводится</h3><p>Netflix, YouTube Premium и часть игр рисуют картинку поверх всего, и снимок экрана в этом месте чёрный. Это ограничение Android.</p></div>
+        <div class="lim"><h3>Задержка 1–2 секунды</h3><p>Кадр снимается, распознаётся, потом переводится по сети. Мгновенно не получится.</p></div>
+        <div class="lim"><h3>Длинные надписи обрезаются</h3><p>Шрифт уменьшается под рамку оригинала, а если не влезает даже минимальный — низ текста обрезается.</p></div>
+        <div class="lim soft"><h3>Русский не переводится на русский</h3><p>Очевидный текст пропускается, чтобы не тратить лимит символов.</p></div>
+        <div class="lim"><h3>Мусор от сжатого видео</h3><p>Распознавание иногда принимает текстуры и артефакты за буквы. Фильтр ловит большую часть, но не всё.</p></div>
+      </div>
+      <div class="stg" style="--i:3">
+        <div class="panel checker">
+          <div class="ctrl-lab"><span>ПОДОЙДЁТ ЛИ ВАШ ТЕЛЕФОН</span></div>
+          <div class="sel"><label for="andVer">ВЕРСИЯ ANDROID</label>
+            <select id="andVer">
+              <option value="7">Android 7.1 и старше</option>
+              <option value="8">Android 8.x</option>
+              <option value="10">Android 9–10</option>
+              <option value="13" selected>Android 11–13</option>
+              <option value="14">Android 14</option>
+              <option value="15">Android 15 и новее</option>
+              <option value="0">Не знаю</option>
+            </select>
+          </div>
+          <div class="sel"><label for="abi">ПРОЦЕССОР</label>
+            <select id="abi">
+              <option value="arm64" selected>arm64 (большинство телефонов с 2017 года)</option>
+              <option value="arm32">arm32 / armeabi-v7a</option>
+              <option value="x86">x86 / эмулятор</option>
+              <option value="unknown">Не знаю</option>
+            </select>
+          </div>
+          <div class="verdict ok" id="verdict"></div>
+          <p class="tiny" style="margin:0">Сборка содержит только <span class="mono">arm64-v8a</span>: так APK весит 37 МБ вместо сотни. На эмуляторе x86 он не установится.</p>
+        </div>
+        <div class="note"><b>Про ключ.</b> Ключ DeepL вшит внутрь APK — удобно, но небезопасно: кто получит файл, сможет вытащить ключ и переводить за ваш счёт. Для личного телефона это нормально. Утёк — отзовите в кабинете DeepL и создайте новый.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="get" data-name="Скачать" aria-labelledby="h-get">
+  <div class="inner">
+    <div class="shead stg" style="--i:0"><span class="num">07</span><h2 id="h-get" tabindex="-1">Скачать</h2></div>
+    <div class="dl glass stg" style="--i:1;margin-top:.6rem">
+      <div class="dl-head">
+        <h3>Подстрочник для Android</h3>
+        <a class="btn filled" href="https://github.com/DmitryLegend/API_translator/releases/download/v1.0.3/app-release-python.apk"><span>Скачать APK</span></a>
+      </div>
+      <div class="dl-meta">
+        <span>версия <b>1.0.3</b></span><span>размер <b>37,4 МБ</b></span><span>от <b>13 ноября 2026</b></span>
+        <span><b>Android 8.0+</b></span><span>процессор <b>arm64-v8a</b></span><span>подпись <b>постоянная</b></span>
+      </div>
+      <p class="tiny">Файл подписан одним ключом, поэтому следующие версии ставятся поверх без удаления. Если раньше стояла черновая сборка из артефактов Actions — её придётся удалить: у неё другая подпись.</p>
+      <div class="sha">
+        <code id="sha">sha256 6850fd6193138bc0f4a119cd6dedffc7c657124d2621aaff505d95694231bbf2</code>
+        <button class="btn outlined sm" id="copySha" type="button"><span>Скопировать хеш</span></button>
+        <button class="btn outlined sm" id="copyLink" type="button"><span>Ссылка на раздел</span></button>
+      </div>
+    </div>
+    <h3 class="stg" style="--i:2;font-size:1.15rem;margin:1.4rem 0 .3rem">Десктопная версия</h3>
+    <p class="tiny stg" style="--i:2">Та же идея на большом экране, PySide6. Пакеты собраны в релизе v1.0.2 — Android-версия с тех пор ушла вперёд.</p>
+    <div class="files stg" style="--i:3">
+      <a class="file" href="https://github.com/DmitryLegend/API_translator/releases/download/v1.0.2/podstrochnik.exe"><span class="n">podstrochnik.exe</span><span class="s">Windows · 127,7 МБ</span></a>
+      <a class="file" href="https://github.com/DmitryLegend/API_translator/releases/download/v1.0.2/podstrochnik-win-x64.zip"><span class="n">podstrochnik-win-x64.zip</span><span class="s">Windows · 127,0 МБ</span></a>
+      <a class="file" href="https://github.com/DmitryLegend/API_translator/releases/download/v1.0.2/podstrochnik-x86_64.AppImage"><span class="n">podstrochnik-x86_64.AppImage</span><span class="s">Linux · 192,9 МБ</span></a>
+      <a class="file" href="https://github.com/DmitryLegend/API_translator/releases/download/v1.0.2/podstrochnik_amd64.deb"><span class="n">podstrochnik_amd64.deb</span><span class="s">Debian/Ubuntu · 191,9 МБ</span></a>
+    </div>
+    <div class="note stg" style="--i:4"><b>Собрать самому.</b> Добавьте в настройках репозитория секрет <span class="mono">DEEPL_API_KEY</span> и запушьте коммит, затрагивающий <span class="mono">android-port/</span>. В Actions появится артефакт <span class="mono">app-debug-python</span>. Тег вида <span class="mono">v1.0.4</span> собирает подписанный релиз.</div>
+    <div class="foot stg" style="--i:5">
+      <div>Автор — <a href="https://github.com/DmitryLegend">DmitryLegend</a>. Распознавание: ML Kit. Перевод выполнен с помощью <a href="https://www.deepl.com/">DeepL</a>.</div>
+      <div class="flinks">
+        <a href="https://github.com/DmitryLegend/API_translator">Репозиторий</a>
+        <a href="https://github.com/DmitryLegend/API_translator/releases">Релизы</a>
+        <a href="https://github.com/DmitryLegend/API_translator/blob/main/android-port/SPECS.md">Спецификация</a>
+        <a href="https://github.com/DmitryLegend/API_translator/issues">Проблемы</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<nav class="rail glass" id="rail" aria-label="Слайды"></nav>
+
+<div class="dock glass">
+  <button class="icon-btn" id="prevBtn" aria-label="Предыдущий слайд"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+  <div class="dock-mid"><span class="c" id="counter">01 / 08</span><span class="n" id="dockName">Старт</span></div>
+  <button class="icon-btn" id="nextBtn" aria-label="Следующий слайд"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+  var root = document.documentElement;
+  var reduce = false;
+  try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+  var slides = [].slice.call(document.querySelectorAll('.slide'));
+  var N = slides.length;
+  if (!N) return;
+  var names = slides.map(function (s) { return s.getAttribute('data-name') || ''; });
+  var HUES = [
+    { d: ['#38D6E8', '#B6F24A'], l: ['#0E7C8C', '#4C7A16'] },
+    { d: ['#B6F24A', '#38D6E8'], l: ['#4C7A16', '#0E7C8C'] },
+    { d: ['#4C8DFF', '#38D6E8'], l: ['#1F5FD0', '#0E7C8C'] },
+    { d: ['#46D68A', '#B6F24A'], l: ['#1E7F4E', '#4C7A16'] },
+    { d: ['#FFB43A', '#FF6B57'], l: ['#9A6206', '#B3311F'] },
+    { d: ['#FF5CC8', '#4C8DFF'], l: ['#A81C86', '#1F5FD0'] },
+    { d: ['#FFB43A', '#FF6B57'], l: ['#9A6206', '#B3311F'] },
+    { d: ['#B6F24A', '#38D6E8'], l: ['#4C7A16', '#0E7C8C'] }
+  ];
+  var cur = 0, deckOn = false, locked = false, queued = null, lockTimer = null, hideTimer = null;
+  var ANIM = reduce ? 0 : 560;
+  var sheetOpen = false, sheetTimer = null;
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function clamp(i) { return Math.max(0, Math.min(N - 1, i)); }
+  function innerOf(i) { return slides[i] ? slides[i].querySelector('.inner') : null; }
+  function isLight() { return root.getAttribute('data-theme') === 'light'; }
+  function closest(el, sel) {
+    while (el && el !== document) {
+      if (el.matches && el.matches(sel)) return el;
+      el = el.parentNode;
+    }
+    return null;
+  }
+
+  var rail = document.getElementById('rail');
+  var sheetList = document.getElementById('sheetList');
+  var tabs = [].slice.call(document.querySelectorAll('.tab'));
+  var prevBtn = document.getElementById('prevBtn');
+  var nextBtn = document.getElementById('nextBtn');
+  var counter = document.getElementById('counter');
+  var dockName = document.getElementById('dockName');
+  var modeBtn = document.getElementById('modeBtn');
+  var themeBtn = document.getElementById('themeBtn');
+  var menuBtn = document.getElementById('menuBtn');
+  var sheet = document.getElementById('sheet');
+  var scrim = document.getElementById('scrim');
+  var toastEl = document.getElementById('toast');
+  var railBtns = [], sheetBtns = [];
+
+  slides.forEach(function (s, i) {
+    var b = document.createElement('button');
+    b.setAttribute('data-go', i);
+    b.setAttribute('data-label', names[i]);
+    b.setAttribute('aria-label', 'Слайд ' + (i + 1) + ': ' + names[i]);
+    b.innerHTML = '<i></i>';
+    rail.appendChild(b);
+    railBtns.push(b);
+    var t = document.createElement('button');
+    t.className = 'sheet-item';
+    t.setAttribute('data-go', i);
+    t.innerHTML = '<span class="n">' + pad(i + 1) + '</span><span>' + names[i] + '</span>';
+    sheetList.appendChild(t);
+    sheetBtns.push(t);
+  });
+
+  function paint(i) {
+    var h = HUES[i] || HUES[0];
+    var pair = isLight() ? h.l : h.d;
+    root.style.setProperty('--accent', pair[0]);
+    root.style.setProperty('--accent2', pair[1]);
+    root.style.setProperty('--blob1', h.d[0]);
+    root.style.setProperty('--blob2', h.d[1]);
+    var mt = document.getElementById('metaTheme');
+    if (mt) mt.setAttribute('content', isLight() ? '#EFF5F5' : '#06181C');
+  }
+  function mark(list, i) {
+    list.forEach(function (el, k) {
+      if (k === i) el.setAttribute('aria-current', 'true'); else el.removeAttribute('aria-current');
+    });
+  }
+  function chrome(i) {
+    mark(railBtns, i); mark(sheetBtns, i); mark(tabs, i);
+    counter.textContent = pad(i + 1) + ' / ' + pad(N);
+    dockName.textContent = names[i];
+    prevBtn.disabled = i === 0;
+    nextBtn.disabled = i === N - 1;
+    paint(i);
+  }
+  function clearAnim(s) {
+    s.classList.remove('in-up', 'in-down', 'out-up', 'out-down', 'leaving');
+  }
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('on');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { toastEl.classList.remove('on'); }, 2400);
+  }
+
+  function show(i, dir) {
+    clearTimeout(hideTimer);
+    var old = cur;
+    slides.forEach(function (s) { clearAnim(s); s.classList.remove('is-active'); });
+    cur = i;
+    var next = slides[i];
+    next.classList.add('is-active');
+    if (!reduce && dir !== 0) next.classList.add(dir > 0 ? 'in-up' : 'in-down');
+    if (!reduce && old !== i && old >= 0) {
+      var prev = slides[old];
+      prev.classList.add('leaving', dir > 0 ? 'out-up' : 'out-down');
+      hideTimer = setTimeout(function () {
+        if (!prev.classList.contains('is-active')) clearAnim(prev);
+      }, ANIM + 60);
+    }
+    chrome(i);
+    try { history.replaceState(null, '', '#' + next.id); } catch (e) {}
+  }
+
+  function go(i, focus) {
+    i = clamp(i);
+    if (!deckOn) {
+      cur = i; chrome(i);
+      try { slides[i].scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }); }
+      catch (e) { slides[i].scrollIntoView(); }
+      return;
+    }
+    if (i === cur) return;
+    if (locked) { queued = i; return; }
+    var dir = i > cur ? 1 : -1;
+    leave(cur);
+    show(i, dir);
+    enter(i);
+    locked = true;
+    clearTimeout(lockTimer);
+    lockTimer = setTimeout(function () {
+      locked = false;
+      if (queued !== null && queued !== cur) { var q = queued; queued = null; go(q, focus); }
+      else queued = null;
+    }, reduce ? 20 : ANIM);
+    if (focus) {
+      var h = slides[i].querySelector('h1,h2');
+      if (h) setTimeout(function () { try { h.focus({ preventScroll: true }); } catch (e) {} }, reduce ? 0 : 280);
+    }
+  }
+
+  function setDeck(on, silent) {
+    deckOn = !!on;
+    clearTimeout(hideTimer); clearTimeout(lockTimer);
+    locked = false; queued = null;
+    slides.forEach(function (s) { clearAnim(s); s.classList.remove('is-active'); });
+    if (deckOn) {
+      root.classList.add('deck-on');
+      slides[cur].classList.add('is-active');
+      chrome(cur);
+      enter(cur);
+      try { history.replaceState(null, '', '#' + slides[cur].id); } catch (e) {}
+    } else {
+      root.classList.remove('deck-on');
+      stopLoop();
+      chrome(cur);
+      try { slides[cur].scrollIntoView({ block: 'start' }); } catch (e) {}
+    }
+    modeBtn.setAttribute('aria-pressed', deckOn ? 'true' : 'false');
+    modeBtn.setAttribute('title', deckOn ? 'Режим слайдов включён — нажать для обычной прокрутки' : 'Обычная прокрутка — нажать для слайдов');
+    try { localStorage.setItem('pod.mode', deckOn ? 'deck' : 'scroll'); } catch (e) {}
+    if (!silent) toast(deckOn ? 'Режим слайдов' : 'Обычная прокрутка');
+  }
+
+  modeBtn.addEventListener('click', function () { setDeck(!deckOn); });
+
+  document.addEventListener('click', function (e) {
+    var t = closest(e.target, '[data-go]');
+    if (!t) return;
+    e.preventDefault();
+    closeSheet();
+    go(parseInt(t.getAttribute('data-go'), 10), true);
+  });
+  prevBtn.addEventListener('click', function () { go(cur - 1, true); });
+  nextBtn.addEventListener('click', function () { go(cur + 1, true); });
+
+  var lastInner = 0;
+  slides.forEach(function (s) {
+    var el = s.querySelector('.inner');
+    if (el) el.addEventListener('scroll', function () { lastInner = Date.now(); }, { passive: true });
+  });
+  function canScroll(el, d) {
+    if (!el) return false;
+    if (el.scrollHeight <= el.clientHeight + 1) return false;
+    return d > 0 ? el.scrollTop + el.clientHeight < el.scrollHeight - 1 : el.scrollTop > 1;
+  }
+  var acc = 0, accTimer = null;
+  window.addEventListener('wheel', function (e) {
+    if (!deckOn || sheetOpen || e.ctrlKey) return;
+    var d = e.deltaY;
+    if (e.deltaMode === 1) d *= 16; else if (e.deltaMode === 2) d *= window.innerHeight;
+    if (Math.abs(e.deltaX) > Math.abs(d)) return;
+    if (canScroll(innerOf(cur), d)) { acc = 0; return; }
+    e.preventDefault();
+    if (locked || Date.now() - lastInner < 220) { acc = 0; return; }
+    acc += d;
+    clearTimeout(accTimer);
+    accTimer = setTimeout(function () { acc = 0; }, 240);
+    if (Math.abs(acc) > 90) { var dir = acc > 0 ? 1 : -1; acc = 0; go(cur + dir); }
+  }, { passive: false });
+
+  var tY = 0, tX = 0, tMode = null, tDelta = 0, tScrollable = false;
+  var deck = document.getElementById('deck');
+  deck.addEventListener('touchstart', function (e) {
+    if (!deckOn || sheetOpen || e.touches.length !== 1) { tMode = null; return; }
+    tY = e.touches[0].clientY; tX = e.touches[0].clientX; tDelta = 0;
+    var el = innerOf(cur);
+    tScrollable = !!el && el.scrollHeight > el.clientHeight + 1;
+    tMode = 'undecided';
+  }, { passive: true });
+  deck.addEventListener('touchmove', function (e) {
+    if (tMode === null || e.touches.length !== 1) return;
+    var dy = e.touches[0].clientY - tY, dx = e.touches[0].clientX - tX;
+    if (tMode === 'undecided') {
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) { tMode = 'ignore'; return; }
+      if (Math.abs(dy) < 8) return;
+      var el = innerOf(cur);
+      var atTop = !el || el.scrollTop <= 0;
+      var atBottom = !el || el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+      tMode = (tScrollable && ((dy < 0 && !atBottom) || (dy > 0 && !atTop))) ? 'inner' : 'slide';
+    }
+    if (tMode === 'slide') { e.preventDefault(); tDelta = dy; }
+  }, { passive: false });
+  function endTouch() {
+    if (tMode === 'slide' && Math.abs(tDelta) > 58) go(cur + (tDelta < 0 ? 1 : -1));
+    tMode = null; tDelta = 0;
+  }
+  deck.addEventListener('touchend', endTouch, { passive: true });
+  deck.addEventListener('touchcancel', endTouch, { passive: true });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { closeSheet(); return; }
+    if (!deckOn) return;
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (closest(t, '[role="slider"]')) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    var k = e.key;
+    if (k === 'ArrowDown' || k === 'PageDown') { e.preventDefault(); go(cur + 1, true); }
+    else if (k === 'ArrowUp' || k === 'PageUp') { e.preventDefault(); go(cur - 1, true); }
+    else if (k === 'Home') { e.preventDefault(); go(0, true); }
+    else if (k === 'End') { e.preventDefault(); go(N - 1, true); }
+    else if (k === ' ' && t === document.body) { e.preventDefault(); go(cur + 1, true); }
+    else if (/^[1-8]$/.test(k)) { e.preventDefault(); go(parseInt(k, 10) - 1, true); }
+  });
+
+  function openSheet() {
+    clearTimeout(sheetTimer);
+    sheet.hidden = false; scrim.hidden = false; sheetOpen = true;
+    requestAnimationFrame(function () { sheet.classList.add('open'); scrim.classList.add('open'); });
+    menuBtn.setAttribute('aria-expanded', 'true');
+    var a = sheetBtns[cur] || sheetBtns[0];
+    if (a) a.focus();
+  }
+  function closeSheet() {
+    if (!sheetOpen) return;
+    sheetOpen = false;
+    sheet.classList.remove('open'); scrim.classList.remove('open');
+    menuBtn.setAttribute('aria-expanded', 'false');
+    sheetTimer = setTimeout(function () { sheet.hidden = true; scrim.hidden = true; }, 260);
+  }
+  menuBtn.addEventListener('click', function () { if (sheetOpen) closeSheet(); else openSheet(); });
+  scrim.addEventListener('click', closeSheet);
+
+  themeBtn.addEventListener('click', function () {
+    var next = isLight() ? 'dark' : 'light';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('pod.theme', next); } catch (e) {}
+    themeBtn.setAttribute('aria-pressed', next === 'light' ? 'true' : 'false');
+    paint(cur);
+    toast(next === 'light' ? 'Светлая тема' : 'Тёмная тема');
+  });
+  themeBtn.setAttribute('aria-pressed', isLight() ? 'true' : 'false');
+
+  function copy(text, okMsg) {
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      toast(ok ? okMsg : 'Не вышло — скопируйте вручную');
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { toast(okMsg); }, fallback);
+    } else fallback();
+  }
+
+  var cmp = document.getElementById('cmp');
+  var handle = document.getElementById('cmpHandle');
+  var dragging = false;
+  function setPos(clientX) {
+    var r = cmp.getBoundingClientRect();
+    if (!r.width) return;
+    var p = Math.max(4, Math.min(96, (clientX - r.left) / r.width * 100));
+    cmp.style.setProperty('--pos', p.toFixed(1) + '%');
+    handle.setAttribute('aria-valuenow', Math.round(p));
+    handle.setAttribute('aria-valuetext', Math.round(p) + ' процента');
+  }
+  cmp.addEventListener('pointerdown', function (e) {
+    if (e.target === handle || handle.contains(e.target)) {
+      dragging = true;
+      try { cmp.setPointerCapture(e.pointerId); } catch (err) {}
+      e.preventDefault();
+    }
+    setPos(e.clientX);
+  });
+  cmp.addEventListener('pointermove', function (e) { if (dragging) { setPos(e.clientX); e.preventDefault(); } });
+  cmp.addEventListener('pointerup', function (e) { dragging = false; try { cmp.releasePointerCapture(e.pointerId); } catch (err) {} });
+  cmp.addEventListener('pointercancel', function () { dragging = false; });
+  handle.addEventListener('keydown', function (e) {
+    var now = parseFloat(handle.getAttribute('aria-valuenow')) || 52;
+    var step = e.shiftKey ? 10 : 3, next = null;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') next = now - step;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') next = now + step;
+    if (next === null) return;
+    e.preventDefault(); e.stopPropagation();
+    next = Math.max(4, Math.min(96, next));
+    cmp.style.setProperty('--pos', next + '%');
+    handle.setAttribute('aria-valuenow', Math.round(next));
+    handle.setAttribute('aria-valuetext', Math.round(next) + ' процента');
+  });
+
+  var band = document.getElementById('band');
+  var bandVal = document.getElementById('bandVal');
+  var glare = document.getElementById('glare');
+  var mMedian = document.getElementById('mMedian');
+  var mMean = document.getElementById('mMean');
+  var swatch = document.getElementById('swatch');
+  var swatchHex = document.getElementById('swatchHex');
+  var swatchNote = document.getElementById('swatchNote');
+  var useMedian = true, BASE = [46, 74, 60];
+  function hex2(n) { return ('0' + n.toString(16)).slice(-2).toUpperCase(); }
+  function updateSwatch() {
+    var b = parseInt(band.value, 10);
+    bandVal.textContent = b + ' px';
+    var total = 40 + b * 26, c;
+    if (glare.checked) {
+      var bright = Math.round(total * 0.18);
+      if (useMedian) { c = BASE.slice(); swatchNote.textContent = 'Медиана: блик занимает меньшинство полосы, цвет фона не поехал.'; }
+      else {
+        var k = bright / total;
+        c = BASE.map(function (v) { return Math.round(v + (255 - v) * k); });
+        swatchNote.textContent = 'Среднее: ' + bright + ' ярких пикселей из ' + total + ' увели цвет к белому — появится пятно.';
+      }
+    } else {
+      c = BASE.slice();
+      swatchNote.textContent = useMedian ? 'Медиана по полосе снаружи рамки.' : 'Среднее по полосе: без блика совпадает с медианой.';
+    }
+    var h = '#' + hex2(c[0]) + hex2(c[1]) + hex2(c[2]);
+    swatch.style.background = h;
+    swatchHex.textContent = h;
+  }
+  band.addEventListener('input', updateSwatch);
+  glare.addEventListener('change', updateSwatch);
+  mMedian.addEventListener('click', function () { useMedian = true; mMedian.setAttribute('aria-pressed', 'true'); mMean.setAttribute('aria-pressed', 'false'); updateSwatch(); });
+  mMean.addEventListener('click', function () { useMedian = false; mMedian.setAttribute('aria-pressed', 'false'); mMean.setAttribute('aria-pressed', 'true'); updateSwatch(); });
+  updateSwatch();
+
+  var nodes = [].slice.call(document.querySelectorAll('#pipe .node'));
+  var consoleEl = document.getElementById('console');
+  var countersEl = document.getElementById('counters');
+  var playBtn = document.getElementById('playBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var speed = document.getElementById('speed');
+  var speedVal = document.getElementById('speedVal');
+  var model, playing = true, raf = null, last = 0, accum = 0, lines = [];
+  function renderModel() {
+    consoleEl.innerHTML = lines.map(function (l) { return '<div>' + l + '</div>'; }).join('');
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+    var shown = (model.aDone ? 1 : 0) + (model.bDone ? 1 : 0);
+    var work = (model.a > 0 ? 1 : 0) + (model.b > 0 ? 1 : 0);
+    countersEl.innerHTML =
+      '<span>кадр <b>' + model.f + '</b></span><span>блоков <b>5</b></span><span>мусор <b>1</b></span>' +
+      '<span>русских <b>1</b></span><span>строк в работе <b>' + work + '</b></span>' +
+      '<span>показано <b>' + shown + '</b></span><span>запросов DeepL <b>' + model.reqs + '</b></span>';
+    nodes.forEach(function (n, i) {
+      if (model.f > 0 && ((model.f - 1) % 4) === i) n.classList.add('hot'); else n.classList.remove('hot');
+    });
+  }
+  function resetModel() {
+    model = { f: 0, a: 0, b: 0, aDone: false, bDone: false, reqs: 0 };
+    lines = ['<span class="hi">конвейер запущен · интервал ' + speed.value + ' мс</span>'];
+    renderModel();
+  }
+  function tickModel() {
+    model.f++;
+    if (model.f > 12) { resetModel(); return; }
+    model.a++;
+    if (model.f >= 4) model.b++;
+    var msg = 'кадр ' + pad(model.f) + ' · распознано 5 блоков, отсеяно 2';
+    if (model.a === 3 && !model.aDone) { model.aDone = true; model.reqs++; msg += ' · <span class="ok">«Hello, traveller» стабильна → DeepL</span>'; }
+    if (model.b === 3 && !model.bDone) { model.bDone = true; model.reqs++; msg += ' · <span class="ok">«Press any key» стабильна → DeepL</span>'; }
+    if (model.a < 3) msg += ' · <span class="warn">ждём стабилизации ' + model.a + '/3</span>';
+    lines.push(msg);
+    if (lines.length > 9) lines.shift();
+    renderModel();
+  }
+  function loop(ts) {
+    raf = requestAnimationFrame(loop);
+    if (!last) last = ts;
+    var dt = ts - last; last = ts;
+    if (!playing) return;
+    accum += dt;
+    if (accum >= parseInt(speed.value, 10)) { accum = 0; tickModel(); }
+  }
+  function startLoop() { if (raf === null) { last = 0; accum = 0; raf = requestAnimationFrame(loop); } }
+  function stopLoop() { if (raf !== null) { cancelAnimationFrame(raf); raf = null; } }
+  playBtn.addEventListener('click', function () {
+    playing = !playing;
+    playBtn.innerHTML = '<span>' + (playing ? 'Пауза' : 'Продолжить') + '</span>';
+    playBtn.setAttribute('aria-pressed', playing ? 'true' : 'false');
+    if (playing && deckOn && slides[cur].id === 'how') startLoop();
+  });
+  resetBtn.addEventListener('click', function () { resetModel(); toast('Модель сброшена'); });
+  speed.addEventListener('input', function () { speedVal.textContent = speed.value + ' мс'; accum = 0; });
+  resetModel();
+
+  var rows = [].slice.call(document.querySelectorAll('#steps .step-row'));
+  var installBar = document.getElementById('installBar');
+  var installCount = document.getElementById('installCount');
+  var done = [];
+  try { done = JSON.parse(localStorage.getItem('pod.install') || '[]'); } catch (e) { done = []; }
+  if (!done || typeof done.length !== 'number') done = [];
+  function renderInstall() {
+    rows.forEach(function (r, i) {
+      var on = done.indexOf(i) >= 0;
+      if (on) r.classList.add('done'); else r.classList.remove('done');
+      r.setAttribute('role', 'checkbox');
+      r.setAttribute('tabindex', '0');
+      r.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    installBar.style.width = (done.length / rows.length * 100) + '%';
+    installCount.textContent = done.length + ' из ' + rows.length + ' готово';
+    try { localStorage.setItem('pod.install', JSON.stringify(done)); } catch (e) {}
+  }
+  function toggleStep(i) {
+    var k = done.indexOf(i);
+    if (k >= 0) done.splice(k, 1); else done.push(i);
+    renderInstall();
+    if (done.length === rows.length) toast('Все пять шагов пройдены');
+  }
+  rows.forEach(function (r, i) {
+    r.addEventListener('click', function () { toggleStep(i); });
+    r.addEventListener('keydown', function (e) {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); toggleStep(i); }
+    });
+  });
+  document.getElementById('installReset').addEventListener('click', function () { done = []; renderInstall(); toast('Список сброшен'); });
+  renderInstall();
+
+  var entries = [].slice.call(document.querySelectorAll('#loglist .entry'));
+  entries.forEach(function (en) {
+    var btn = en.querySelector('.entry-btn');
+    btn.addEventListener('click', function () {
+      var open = en.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  });
+  var logCount = document.getElementById('logCount');
+  var filters = document.getElementById('filters');
+  filters.addEventListener('click', function (e) {
+    var b = closest(e.target, '.fchip');
+    if (!b) return;
+    [].forEach.call(filters.querySelectorAll('.fchip'), function (c) { c.setAttribute('aria-pressed', c === b ? 'true' : 'false'); });
+    var cat = b.getAttribute('data-cat'), shown = 0;
+    entries.forEach(function (en) {
+      var ok = cat === 'all' || en.getAttribute('data-cat') === cat;
+      en.hidden = !ok;
+      if (ok) shown++;
+    });
+    logCount.textContent = 'Показано ' + shown + ' из ' + entries.length + ' записей.';
+  });
+
+  var FILES = [
+    { n: 'core.py', p: 'android-port/src/main/python/core.py', b: 14621, r: 'Вся чистая логика: фильтры, строки, конвейер, запрос к DeepL. Ни одной строчки Android — поэтому файл целиком покрыт тестами и запускается на обычном компьютере.', f: ['Константы: SCAN_MS 700, STABLE_SCANS 3, LINE_TTL_MS 4000, BATCH 40', 'normalize, looks_like_text, is_russian, edit_distance_within', 'box_overlap, ring_points, median_color, luminance, fit_size', 'Класс Pipeline: один кадр → элементы отрисовки и статус'] },
+    { n: 'service.py', p: 'android-port/src/main/python/service.py', b: 13713, r: 'Служба перевода: захват экрана, распознавание, рабочий поток. Служба только держит процесс живым, всё тяжёлое делается вне главного потока.', f: ['startForeground вызывается раньше getMediaProjection', 'ImageReader в RGBA_8888, Bitmap собирается вручную с учётом rowStride', 'Захват пересоздаётся при смене размера или поворота', 'Java-списки обходятся явным итератором'] },
+    { n: 'overlay.py', p: 'android-port/src/main/python/overlay.py', b: 6603, r: 'Прозрачное окно поверх всего экрана. Рисование в Bitmap на рабочем потоке, главный поток только подменяет картинку через setImageBitmap.', f: ['TYPE_APPLICATION_OVERLAY + NOT_TOUCHABLE и NOT_FOCUSABLE', 'ImageView вместо своего View: у статического прокси недоступен конструктор с аргументами', 'StaticLayout: includePad выключен, интерлиньяж 0.92', 'Цвет текста по яркости фона, порог 0.45'] },
+    { n: 'main.py', p: 'android-port/src/main/python/main.py', b: 10707, r: 'Экран управления: одна кнопка, разрешения и диагностика. Телефон не даёт логов, поэтому всё, что пошло не так, показывается текстом и копируется в буфер обмена.', f: ['Запрос уведомлений, оверлея и захвата экрана по порядку', 'Причина падения процесса из ApplicationExitInfo', 'resultCode кладётся как jint: иначе служба прочитает ноль', 'Отчёт показывается один раз и не висит вечно'] },
+    { n: 'interop.py', p: 'android-port/src/main/python/interop.py', b: 1291, r: 'Мост Python → Java для колбэков интерфейсов: обработчик нажатия и задача для главного потока.', f: ['ClickHandler для кнопки', 'UiTask для периодического обновления экрана'] },
+    { n: 'keys.py', p: 'android-port/src/main/python/keys.py', b: 148, r: 'Заготовка под ключ DeepL. В репозитории значение пустое — настоящий ключ CI вшивает в файл при сборке из секрета.', f: ['DEEPL_KEY пуст в репозитории', 'Секрет называется строго DEEPL_API_KEY', 'Без секрета сборка падает сразу и с понятным сообщением'] },
+    { n: 'test_core.py', p: 'android-port/test_core.py', b: 10504, r: '42 проверки чистой логики. Гоняются без телефона и графики: python3 android-port/test_core.py.', f: ['12 наборов: строки, рамки, цвет, кегль, конвейер', 'Проверяется то, что ломается тихо: поворот, медиана, похожесть строк', 'Сетевой код проверяется по контракту ошибки', 'Запускаются в CI перед каждой сборкой'] },
+    { n: 'SPECS.md', p: 'android-port/SPECS.md', b: 28144, r: 'Спецификация порта, по которой написан код: константы, чистые функции, поведение конвейера. Написана методом чистой комнаты.', f: ['Раздел «Константы» — источник всех чисел в core.py', 'Раздел «Чистые функции» — контракт для тестов'] },
+    { n: 'podstrochnik.py', p: 'desktop/podstrochnik.py', b: 22041, r: 'Десктопная версия на PySide6: та же идея на большом экране, собирается в пакеты для Windows и Linux.', f: ['Пакеты: exe, zip, AppImage, deb', 'Сборка целиком в GitHub Actions'] },
+    { n: 'build.gradle.kts', p: 'android-port/build.gradle.kts', b: 2316, r: 'Конфигурация сборки Android-порта: Chaquopy, ML Kit, подпись из секретов CI.', f: ['Chaquopy 17.2.0, Python 3.14, staticProxy для main и service', 'minSdk 26, compileSdk и targetSdk 36', 'abiFilters только arm64-v8a', 'ML Kit text-recognition 16.0.1', 'Подпись PKCS12 из четырёх секретов'] }
+  ];
+  var filelist = document.getElementById('filelist');
+  var detail = document.getElementById('detail');
+  function fmtBytes(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' Б'; }
+  function showFile(i) {
+    var f = FILES[i];
+    [].forEach.call(filelist.children, function (el, k) { el.setAttribute('aria-pressed', k === i ? 'true' : 'false'); });
+    detail.innerHTML =
+      '<h3>' + f.n + '</h3><div class="path">' + f.p + ' · ' + fmtBytes(f.b) + '</div>' +
+      '<p style="font-size:.92rem;color:var(--on-var)">' + f.r + '</p>' +
+      '<ul>' + f.f.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>' +
+      '<a class="btn outlined sm" href="https://github.com/DmitryLegend/API_translator/blob/main/' + f.p + '"><span>Открыть на GitHub</span></a>';
+  }
+  FILES.forEach(function (f, i) {
+    var b = document.createElement('button');
+    b.className = 'frow'; b.type = 'button';
+    b.setAttribute('aria-pressed', 'false');
+    b.innerHTML = '<span class="nm">' + f.n + '</span><span class="sz">' + fmtBytes(f.b) + '</span>';
+    b.addEventListener('click', function () { showFile(i); });
+    filelist.appendChild(b);
+  });
+  showFile(0);
+
+  var andVer = document.getElementById('andVer');
+  var abi = document.getElementById('abi');
+  var verdict = document.getElementById('verdict');
+  var ICONS = {
+    ok: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l6 6L20 6"/></svg>',
+    bad: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+    warn: '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v5M12 17h.01M10.3 3.9 2.6 17.4A2 2 0 0 0 4.3 20.4h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>'
+  };
+  function checkDevice() {
+    var v = parseInt(andVer.value, 10), a = abi.value, cls, msg;
+    if (v > 0 && v < 8) { cls = 'bad'; msg = 'Не установится: нужен Android 8.0 или новее (minSdk 26).'; }
+    else if (a === 'arm32' || a === 'x86') { cls = 'bad'; msg = 'Не установится: в APK только arm64-v8a. Нужна сборка под вашу архитектуру.'; }
+    else if (v === 0 || a === 'unknown') { cls = 'warn'; msg = 'Скорее всего подойдёт. Проверьте: Android 8.0+ и процессор arm64 — почти все телефоны с 2017 года.'; }
+    else if (v >= 14) { cls = 'ok'; msg = 'Подойдёт. На Android 14+ важны порядок запуска службы и восемь параметров createVirtualDisplay — обе особенности уже учтены в коде.'; }
+    else { cls = 'ok'; msg = 'Подойдёт: Android 8.0+ и arm64. Разрешения система спросит при первом запуске.'; }
+    verdict.className = 'verdict ' + cls;
+    verdict.innerHTML = ICONS[cls] + '<span>' + msg + '</span>';
+  }
+  andVer.addEventListener('change', checkDevice);
+  abi.addEventListener('change', checkDevice);
+  checkDevice();
+
+  document.getElementById('copySha').addEventListener('click', function () {
+    copy(document.getElementById('sha').textContent.replace('sha256 ', '').trim(), 'Хеш скопирован');
+  });
+  document.getElementById('copyLink').addEventListener('click', function () {
+    copy(location.href.split('#')[0] + '#' + slides[cur].id, 'Ссылка на раздел скопирована');
+  });
+
+  function enter(i) { if (slides[i].id === 'how' && deckOn) startLoop(); }
+  function leave(i) { if (slides[i].id === 'how') stopLoop(); }
+
+  function fromHash() {
+    var id = (location.hash || '').replace('#', '');
+    for (var i = 0; i < N; i++) if (slides[i].id === id) return i;
+    return 0;
+  }
+  window.addEventListener('hashchange', function () {
+    var i = fromHash();
+    if (i !== cur) go(i, true);
+  });
+
+  var scrollTick = false;
+  window.addEventListener('scroll', function () {
+    if (deckOn || scrollTick) return;
+    scrollTick = true;
+    requestAnimationFrame(function () {
+      scrollTick = false;
+      var best = 0, bestD = Infinity;
+      slides.forEach(function (s, i) {
+        var d = Math.abs(s.getBoundingClientRect().top - 100);
+        if (d < bestD) { bestD = d; best = i; }
+      });
+      if (best !== cur) { cur = best; chrome(best); }
+    });
+  }, { passive: true });
+
+  function boot() {
+    cur = fromHash();
+    chrome(cur);
+    var stored = null;
+    try { stored = localStorage.getItem('pod.mode'); } catch (e) {}
+    setDeck(stored !== 'scroll', true);
+    setTimeout(function () {
+      if (!deckOn) return;
+      var a = document.querySelector('.slide.is-active');
+      var bad = !a;
+      if (a) {
+        var cs = window.getComputedStyle(a);
+        var r = a.getBoundingClientRect();
+        if (cs.display === 'none' || cs.visibility === 'hidden' || r.height < 40) bad = true;
+      }
+      if (bad) { setDeck(false, true); toast('Включена обычная прокрутка'); }
+    }, 1500);
+  }
+
+  try { boot(); }
+  catch (err) {
+    root.classList.remove('deck-on');
+    deckOn = false;
+    slides.forEach(function (s) { clearAnim(s); s.classList.remove('is-active'); });
+  }
+})();
+</script>
+</body>
+</html>
