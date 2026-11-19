@@ -28,7 +28,9 @@ READ_TIMEOUT_MS = 15_000
 MIN_TEXT_PX = 7.0
 MAX_HEIGHT_GROWTH = 1.6
 FIT_STEPS = 10
-
+# Пауза перед повторной попыткой перевода после сбоя сети. Растёт с числом
+# попыток (см. frame), но не бесконечно: множитель ограничен четырьмя.
+RETRY_MS = 4000
 
 def normalize(text: str) -> str:
     """Ключ строки: без регистра, пробелов и знаков — только буквы и цифры.
@@ -36,7 +38,6 @@ def normalize(text: str) -> str:
     Так дрожь распознавания («Неllo» вместо «Hello») не порождает новую строку.
     """
     return "".join(c for c in text.lower() if c.isalnum())
-
 
 def looks_like_text(text: str) -> bool:
     """Грубый фильтр мусора: букв несколько, разнородных знаков мало.
@@ -47,7 +48,6 @@ def looks_like_text(text: str) -> bool:
         return False
     allowed = sum(c.isalnum() or c in ALLOWED_PUNCT for c in text)
     return allowed >= len(text) * 3 // 4
-
 
 def is_russian(text: str) -> bool:
     """Строка считается русской, если буквы почти все кириллические.
@@ -60,7 +60,6 @@ def is_russian(text: str) -> bool:
         return False
     cyr = sum("\u0400" <= c <= "\u04ff" for c in letters)
     return cyr / len(letters) > 0.7
-
 
 def edit_distance_within(a: str, b: str, limit: int) -> bool:
     """Отличаются ли строки не более чем на limit правок (вставка/удаление/замена).
@@ -88,7 +87,6 @@ def edit_distance_within(a: str, b: str, limit: int) -> bool:
         previous = current
     return previous[-1] <= limit
 
-
 def box_overlap(a: tuple, b: tuple) -> float:
     """Насколько две рамки (left, top, right, bottom) описывают одно место.
 
@@ -103,11 +101,9 @@ def box_overlap(a: tuple, b: tuple) -> float:
     union = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - shared
     return shared / union if union > 0 else 0.0
 
-
 def same_place(a: tuple, b: tuple) -> bool:
     """Тот же кусок экрана ли это: рамка могла уехать — это уже другое место."""
     return box_overlap(a, b) >= SAME_PLACE
-
 
 def ring_points(left: int, top: int, right: int, bottom: int, band: int) -> list:
     """Точки полосой снаружи рамки, для взятия цвета фона.
@@ -128,21 +124,20 @@ def ring_points(left: int, top: int, right: int, bottom: int, band: int) -> list
             points.append((right + i, y))
     return points
 
-
 def median_color(pixels: list) -> int:
     """Цвет фона: медиана по каждому каналу, не среднее.
 
     Один яркий пиксель (блик, курсор) уводит среднее в свою сторону, медиану
-    — не сдвигает вовсе. Пустой вход — чёрный.
+    — не сдвигает вовсе. Пустой вход — непрозрачный чёрный: прозрачная заливка
+    оставила бы оригинал видимым под переводом.
     """
     if not pixels:
-        return 0
+        return 0xFF000000
     rs = sorted((p >> 16) & 0xFF for p in pixels)
     gs = sorted((p >> 8) & 0xFF for p in pixels)
     bs = sorted(p & 0xFF for p in pixels)
     m = len(pixels) // 2
     return (0xFF << 24) | (rs[m] << 16) | (gs[m] << 8) | bs[m]
-
 
 def luminance(color: int) -> float:
     """Относительная яркость ARGB-цвета: линейная sRGB, 0 — чёрный, 1 — белый."""
@@ -154,7 +149,6 @@ def luminance(color: int) -> float:
     g = (color >> 8) & 0xFF
     b = color & 0xFF
     return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
-
 
 def fit_size(min_size: float, max_size: float, max_height: float, height_of) -> float:
     """Наибольший размер из [min_size, max_size], при котором текст влезает.
@@ -176,13 +170,16 @@ def fit_size(min_size: float, max_size: float, max_height: float, height_of) -> 
             hi = mid
     return lo
 
-
 # --- Данные ------------------------------------------------------------------
-
 
 @dataclass(eq=False)
 class Line:
-    """Строка, которая держится на экране. Сравнение — по принадлежности."""
+    """Строка, которая держится на экране. Сравнение — по принадлежности.
+
+    tries и next_try — ретрай после сбоя сети: строка не теряется, а ждёт
+    своей паузы. pend_* — буфер кандидата: текст на том же месте мог реально
+    смениться, и это надо отличить от дрожи распознавания.
+    """
 
     key: str
     src: str
@@ -190,7 +187,11 @@ class Line:
     translation: str | None = None
     seen: int = 0
     last_seen: float = 0.0
-
+    tries: int = 0
+    next_try: float = 0.0
+    pend_key: str = ""
+    pend_src: str = ""
+    pend_seen: int = 0
 
 @dataclass
 class Item:
@@ -201,15 +202,13 @@ class Item:
     color: int
     start_size: float
 
-
 # --- Перевод -----------------------------------------------------------------
-
 
 def deepl_translate(key: str, chunks: list):
     """Переводит пачку строк. Возвращает (список переводов, текст ошибки).
 
     Ошибки не пробрасываются: при обрыве сети лучше молча не показать
-    перевод, чем уронить весь конвейер.
+    перевод, чем уронить весь конвейер. Повтор попытается сам (см. Pipeline).
     """
     # У бесплатного ключа суффикс «:fx» — он ходит на другой адрес.
     host = "api-free" if key.endswith(":fx") else "api"
@@ -243,9 +242,7 @@ def deepl_translate(key: str, chunks: list):
         return None, f"сеть: {type(e).__name__}: {e}"
     return [t.get("text", "") for t in payload.get("translations", [])], ""
 
-
 # --- Конвейер ----------------------------------------------------------------
-
 
 class Pipeline:
     """Обработка одного кадра: фильтры, строки, перевод, элементы отрисовки.
@@ -261,6 +258,9 @@ class Pipeline:
         self.errors = 0
         self.last_error = ""
         self.shown: list = []
+        # Переводы по ключу строки: сменившийся и вернувшийся текст не требует
+        # нового запроса.
+        self._cache: dict = {}
 
     def reset(self) -> None:
         """Экран сменил размер или поворот: всё найденное — в чужих координатах."""
@@ -304,20 +304,49 @@ class Pipeline:
             line.last_seen = now
             found.append(line)
 
+            # Текст на том же месте мог реально смениться (счёт, таймер), а мог
+            # дрогнуть. Кандидат копится отдельно и.commit-ится, только когда
+            # продержался STABLE_SCANS кадров: одиночная описка им не станет.
+            if line.key != key:
+                if line.pend_key == key:
+                    line.pend_seen += 1
+                else:
+                    line.pend_key, line.pend_src, line.pend_seen = key, src, 1
+                if line.pend_seen >= STABLE_SCANS:
+                    line.key, line.src = line.pend_key, line.pend_src
+                    line.translation = self._cache.get(line.key)
+                    line.seen = line.pend_seen
+                    line.pend_key, line.pend_seen = "", 0
+                    if line.translation is None:
+                        # Новый текст: стабилизация начинается заново.
+                        line.seen = 0
+                        line.tries = 0
+                        line.next_try = 0.0
+            else:
+                line.pend_key, line.pend_seen = "", 0
+
         self.lines = [l for l in self.lines if now - l.last_seen <= LINE_TTL_MS]
         if len(self.lines) > MAX_LINES:
             del self.lines[: len(self.lines) - MAX_LINES]
 
-        todo = [l for l in found if l.translation is None and l.seen == STABLE_SCANS]
+        # >=, а не ==: строка, пережившая сбой сети, обязана получить повторную
+        # попытку, а не выпасть из очереди навсегда. Пауза — next_try.
+        todo = [l for l in found
+                if l.translation is None and l.seen >= STABLE_SCANS
+                and now >= l.next_try]
         for chunk in (todo[i : i + BATCH] for i in range(0, len(todo), BATCH)):
             texts, error = self._translate([l.src for l in chunk])
             if texts is None:
                 self.errors += 1
                 self.last_error = error
+                for line in chunk:
+                    line.tries += 1
+                    line.next_try = now + RETRY_MS * min(line.tries, 4)
                 continue
             for line, text in zip(chunk, texts):
                 if text:
                     line.translation = text
+                    self._cache[line.key] = text
 
         items = []
         for line in found:
@@ -339,10 +368,12 @@ class Pipeline:
 
         changed = items != self.shown
         self.shown = items
+        waiting = sum(1 for l in self.lines
+                      if l.translation is None and l.tries > 0)
         status = (
             f"блоков всего {len(readings)} (мусор {garbage}, русских {russian})\n"
             f"строк в работе: {len(found)}, показано: {len(items)}\n"
-            f"ошибок сети: {self.errors}"
+            f"ошибок сети: {self.errors}, ждут повтора: {waiting}"
             + ("" if not self.last_error else f"\n{self.last_error}")
         )
         return items, changed, status
