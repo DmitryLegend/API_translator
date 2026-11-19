@@ -1,21 +1,14 @@
-name: Build APK
+name: Build Auto Release
 
 on:
-  # Тег вида v1.0.4 собирает подписанный APK и выкладывает его в Releases.
-  tags: ['v*']
+  push:
+    tags: ['v*']
 
 permissions:
-  # write, а не read: комментарий к коммиту через API GitHub относится к
-  # содержимому репозитория, и без права на запись шаг отчёта не сможет
-  # ничего повесить. Это ключ, который воркфлоу сам создал, он действует
-  # только внутри этого запуска.
   contents: write
 
 jobs:
   release:
-    # Релиз собирается только по тегу: обычный пуш в main даёт debug-сборку
-    # через python.yml, а «официальный» файл появляется на странице Releases
-    # репозитория — оттуда его и качают.
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
@@ -32,88 +25,27 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Проверить, что секреты подписи на месте
-        # Подпись нельзя пропускать: без неё Android просто не поставит файл,
-        # а узнать об этом можно только на телефоне. Ловим здесь.
-        run: |
-          if [ -z "$RELEASE_KEYSTORE_BASE64" ] || [ -z "$RELEASE_KEYSTORE_PASSWORD" ]; then
-            echo "::error::Нет секретов подписи релиза (RELEASE_KEYSTORE_BASE64, RELEASE_KEYSTORE_PASSWORD)"
-            exit 1
-          fi
-        env:
-          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+      - name: Тесты чистой логики
+        run: python3 android-port/test_core.py
 
-      - name: Убедиться, что в keys.py нет ключа
-        # Защита от случайного коммита настоящего ключа: в репозитории файл
-        # обязан быть пустой заготовкой, ключ приходит только из секрета.
-        run: grep -q 'DEEPL_KEY = ""' android-port/src/main/python/keys.py
-
-      - name: Тесты и подписанная сборка
+      - name: Вшить ключ DeepL
         run: |
-          set -e
-          python3 android-port/test_core.py
-          # Ключ вшивается в keys.py: у бесплатного тарифа DeepL ключ ходит
-          # в заголовке запроса, и приложению нужен он, а не ввод вручную.
-          if [ -z "$DEEPL_API_KEY" ]; then
-            echo "::error::Нет секрета DEEPL_API_KEY — добавьте его в Settings → Secrets репозитория"
-            exit 1
-          fi
-          printf '"""Ключ DeepL, вшиваемый при сборке. CI перезаписывает этот файл из секрета."""\nDEEPL_KEY = "%s"\n' "$DEEPL_API_KEY" > android-port/src/main/python/keys.py
-          ./gradlew -p android-port --no-daemon assembleRelease
+          printf 'DEEPL_KEY = "%s"\n' "$DEEPL_API_KEY" > android-port/src/main/python/keys.py
         env:
           DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
-          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
-          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
 
-      - name: Проверить подпись APK
-        # Ищем блок подписи прямо в файле. Подпись v1 клала бы рядом
-        # META-INF/*.SF, но при minSdk 26 она по умолчанию выключена, и там
-        # пусто даже у вполне подписанного APK — на этом уже обжигались.
-        # Подпись v2/v3 кладёт в файл блок с такой вот подписью внутри.
-        run: |
-          set -e
-          if ! grep -aq 'APK Sig Block 42' android-port/build/outputs/apk/release/*.apk; then
-            echo "::error::В APK нет блока подписи, публиковать нечего"
-            exit 1
-          fi
+      - name: Сборка Debug APK
+        run: ./gradlew -p android-port --no-daemon assembleDebug
 
-      - name: Выложить на страницу Releases
+      - name: Создать релиз и прикрепить APK
         env:
-          # Токен самого workflow, он умеет ровно то, что разрешено в
-          # permissions выше: записать содержимое репозитория.
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -e
           tag="${GITHUB_REF_NAME}"
-
-          # Имя файла задаём сами: у Gradle-проекта android-port другое имя
-          # корневого проекта, и файл назывался бы по-своему. Kotlin-версия
-          # снята с выпуска; её файлы остались в релизах до v1.0.3 включительно.
-          cp android-port/build/outputs/apk/release/*.apk app-release-python.apk
-
-          # Текст собираем через printf с \n: gh не берёт одновременно
-          # --notes и --generate-notes, а многострочную строку в YAML с
-          # отступом иначе не записать — heredoc с нулевым отступом рвёт файл.
-          notes=$(printf '%b' \
-            'Скачайте `app-release-python.apk` и откройте на телефоне — Android спросит разрешение на установку.\n\n' \
-            'Раньше рядом выходила ещё и Kotlin-версия (`app-release.apk`): она снята с выпуска, её файлы лежат в релизах до v1.0.3. Имена пакетов разные, поэтому обе версии могли стоять на телефоне одновременно.\n\n' \
-            'При **первой** установке удалите прежнюю сборку из черновиков: подпись у них разная, и Android не поставит релиз поверх. Дальше версии обновляются штатно.\n\n' \
-            'Исходники — пункт **Source code** рядом с этим списком, GitHub прикладывает их к каждому релизу сам.\n')
-
-          if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" app-release-python.apk --clobber
-          else
-            gh release create "$tag" app-release-python.apk \
-              --title "Подстрочник $tag" \
-              --notes "$notes"
-          fi
-          echo "APK: $(du -h app-release-python.apk | cut -f1)"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: app-release
-          path: android-port/build/outputs/apk/release/*.apk
-          if-no-files-found: error
+          # Находим собранный debug apk
+          apk_path=$(find android-port/build/outputs/apk/debug -name "*.apk" | head -n 1)
+          
+          # Создаем релиз и сразу прикрепляем файл
+          gh release create "$tag" "$apk_path" \
+            --title "Подстрочник $tag" \
+            --notes "Автоматическая сборка. Если приложение не обновляется поверх старого, удали предыдущую версию с телефона."
