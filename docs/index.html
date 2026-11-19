@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru" data-hue="0">
+<html lang="ru" data-theme="dark" data-hue="0">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -38,12 +38,10 @@
 html[data-theme="light"]{
 --surface:#EDF4F4;--sc-rgb:255,255,255;--sc-low:#FFFFFF;--sc-high:#E4EEEF;--sc-highest:#D6E5E7;
 --on-surface:#0B2227;--on-var:#42585E;--outline:#A9BEC2;--outline-var:#CBDDE0;
---success:#1B7A4A;--warning:#8F5B04;--danger:#AE2E1D;--info:#1B58C8;
---on-accent:#FFFFFF;
+--success:#1B7A4A;--warning:#8F5B04;--danger:#AE2E1D;--info:#1B58C8;--on-accent:#FFFFFF;
 --glass:rgba(255,255,255,.90);--glass-2:rgba(255,255,255,.95);--glass-brd:rgba(11,34,39,.16);
 --glass-hi:rgba(255,255,255,.95);--thumb:rgba(11,60,70,.30);--scrim:rgba(18,44,50,.36);
---hover:rgba(11,34,39,.07);--track:rgba(11,34,39,.14);
---shadow:0 10px 24px rgba(24,60,68,.14);
+--hover:rgba(11,34,39,.07);--track:rgba(11,34,39,.14);--shadow:0 10px 24px rgba(24,60,68,.14);
 }
 html[data-hue="0"]{--accent:#38D6E8;--accent2:#B6F24A;--tintA:rgba(56,214,232,.20);--tintB:rgba(182,242,74,.14)}
 html[data-hue="1"]{--accent:#B6F24A;--accent2:#38D6E8;--tintA:rgba(182,242,74,.18);--tintB:rgba(56,214,232,.16)}
@@ -75,20 +73,9 @@ svg{display:block;max-width:100%}
 *{scrollbar-width:thin;scrollbar-color:var(--thumb) transparent}
 
 .bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
-.bg-base{position:absolute;inset:0;background:
-radial-gradient(70% 55% at 8% -6%,#12414C 0%,transparent 62%),
-radial-gradient(60% 50% at 96% 12%,#0E3A46 0%,transparent 60%),
-radial-gradient(90% 70% at 40% 108%,#0B2E36 0%,transparent 66%),
-linear-gradient(178deg,#071B20 0%,#06181C 52%,#041216 100%)}
-html[data-theme="light"] .bg-base{background:
-radial-gradient(70% 55% at 8% -6%,#DCEDEE 0%,transparent 62%),
-radial-gradient(60% 50% at 96% 12%,#E3EFEA 0%,transparent 60%),
-radial-gradient(90% 70% at 40% 108%,#D5E6E8 0%,transparent 66%),
-linear-gradient(178deg,#F2F8F8 0%,#EDF4F4 52%,#E4EFF0 100%)}
-.bg-tint{position:absolute;inset:-22%;background:
-radial-gradient(38% 34% at 16% 14%,var(--tintA) 0%,transparent 68%),
-radial-gradient(34% 30% at 86% 26%,var(--tintB) 0%,transparent 66%),
-radial-gradient(44% 38% at 62% 92%,var(--tintA) 0%,transparent 70%)}
+.bg-base{position:absolute;inset:0;background:radial-gradient(70% 55% at 8% -6%,#12414C 0%,transparent 62%),radial-gradient(60% 50% at 96% 12%,#0E3A46 0%,transparent 60%),radial-gradient(90% 70% at 40% 108%,#0B2E36 0%,transparent 66%),linear-gradient(178deg,#071B20 0%,#06181C 52%,#041216 100%)}
+html[data-theme="light"] .bg-base{background:radial-gradient(70% 55% at 8% -6%,#DCEDEE 0%,transparent 62%),radial-gradient(60% 50% at 96% 12%,#E3EFEA 0%,transparent 60%),radial-gradient(90% 70% at 40% 108%,#D5E6E8 0%,transparent 66%),linear-gradient(178deg,#F2F8F8 0%,#EDF4F4 52%,#E4EFF0 100%)}
+.bg-tint{position:absolute;inset:-22%;background:radial-gradient(38% 34% at 16% 14%,var(--tintA) 0%,transparent 68%),radial-gradient(34% 30% at 86% 26%,var(--tintB) 0%,transparent 66%),radial-gradient(44% 38% at 62% 92%,var(--tintA) 0%,transparent 70%)}
 html[data-theme="light"] .bg-tint{opacity:.55}
 html.fx-drift .bg-tint{will-change:transform;animation:drift 46s linear infinite}
 @keyframes drift{0%{transform:translate3d(0,0,0) scale(1)}33%{transform:translate3d(3%,-2%,0) scale(1.06)}66%{transform:translate3d(-3%,2%,0) scale(1.03)}100%{transform:translate3d(0,0,0) scale(1)}}
@@ -412,16 +399,16 @@ html.deck-on.fx-motion .slide.in-up,html.deck-on.fx-motion .slide.in-down,html.d
         </div>
         <p class="lead stg" style="--i:4">Открыли YouTube, игру или чужое приложение — Подстрочник распознаёт надписи, переводит их на русский и пишет перевод на место оригинала. Оригинальная строка закрашивается цветом собственного фона, а не закрывается непрозрачной плашкой: картинка остаётся живой.</p>
         <div class="cta stg" style="--i:5">
-          <a class="btn filled" href="https://github.com/DmitryLegend/API_translator/releases/download/v1.0.3/app-release-python.apk">Скачать APK · v1.0.3</a>
+          <a class="btn filled" id="dlBtn" href="https://github.com/DmitryLegend/API_translator/releases/download/v1.0.3/app-release-python.apk">Скачать APK</a>
           <a class="btn tonal" href="https://github.com/DmitryLegend/API_translator">Исходный код</a>
         </div>
         <div class="chips stg" style="--i:5">
-          <span class="chip"><b>37,4 МБ</b> файл</span>
+          <span class="chip"><b id="dlSize">37,4 МБ</b> файл</span>
           <span class="chip"><b>Android 8.0+</b></span>
           <span class="chip"><b>arm64-v8a</b></span>
           <span class="chip"><b>Python 3.14</b> Chaquopy</span>
-          <span class="chip"><b>42</b> проверки</span>
-          <span class="chip">обновлено <b>13.11.2026</b></span>
+          <span class="chip"><b data-test-count>49</b> проверок</span>
+          <span class="chip">обновлено <b id="dlDate">13.11.2026</b></span>
         </div>
         <div class="hint stg" style="--i:5">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
@@ -664,7 +651,7 @@ html.deck-on.fx-motion .slide.in-up,html.deck-on.fx-motion .slide.in-down,html.d
       <div class="panel detail" id="detail"></div>
     </div>
     <div class="stats stg" style="--i:3">
-      <div><div class="v">42</div><div class="l">ПРОВЕРКИ ЛОГИКИ</div></div>
+      <div><div class="v" data-test-count>49</div><div class="l">ПРОВЕРКИ ЛОГИКИ</div></div>
       <div><div class="v">0</div><div class="l">СТРОК ANDROID В CORE</div></div>
       <div><div class="v">3.14</div><div class="l">PYTHON В APK</div></div>
       <div><div class="v">26</div><div class="l">MIN SDK</div></div>
@@ -724,10 +711,10 @@ html.deck-on.fx-motion .slide.in-up,html.deck-on.fx-motion .slide.in-down,html.d
     <div class="dl glass stg" style="--i:1;margin-top:.5rem">
       <div class="dl-head">
         <h3>Подстрочник для Android</h3>
-        <a class="btn filled" href="https://github.com/DmitryLegend/API_translator/releases/download/v1.0.3/app-release-python.apk">Скачать APK</a>
+        <a class="btn filled" id="dlBtn2" href="https://github.com/DmitryLegend/API_translator/releases/download/v1.0.3/app-release-python.apk">Скачать APK</a>
       </div>
       <div class="dl-meta">
-        <span>версия <b>1.0.3</b></span><span>размер <b>37,4 МБ</b></span><span>от <b>13 ноября 2026</b></span>
+        <span>версия <b id="dlVersion">1.0.3</b></span><span>размер <b id="dlSize2">37,4 МБ</b></span><span>от <b id="dlDate2">13 ноября 2026</b></span>
         <span><b>Android 8.0+</b></span><span>процессор <b>arm64-v8a</b></span><span>подпись <b>постоянная</b></span>
       </div>
       <p class="tiny">Файл подписан одним ключом, поэтому следующие версии ставятся поверх без удаления. Если раньше стояла черновая сборка из артефактов Actions — её придётся удалить: у неё другая подпись.</p>
@@ -1238,7 +1225,7 @@ html.deck-on.fx-motion .slide.in-up,html.deck-on.fx-motion .slide.in-down,html.d
     { n: 'main.py', p: 'android-port/src/main/python/main.py', b: 10707, r: 'Экран управления: одна кнопка, разрешения и диагностика. Телефон не даёт логов, поэтому всё, что пошло не так, показывается текстом и копируется в буфер обмена.', f: ['Запрос уведомлений, оверлея и захвата экрана по порядку', 'Причина падения процесса из ApplicationExitInfo', 'resultCode кладётся как jint: иначе служба прочитает ноль', 'Отчёт показывается один раз и не висит вечно'] },
     { n: 'interop.py', p: 'android-port/src/main/python/interop.py', b: 1291, r: 'Мост Python → Java для колбэков интерфейсов: обработчик нажатия и задача для главного потока.', f: ['ClickHandler для кнопки', 'UiTask для периодического обновления экрана'] },
     { n: 'keys.py', p: 'android-port/src/main/python/keys.py', b: 148, r: 'Заготовка под ключ DeepL. В репозитории значение пустое — настоящий ключ CI вшивает в файл при сборке из секрета.', f: ['DEEPL_KEY пуст в репозитории', 'Секрет называется строго DEEPL_API_KEY', 'Без секрета сборка падает сразу и с понятным сообщением'] },
-    { n: 'test_core.py', p: 'android-port/test_core.py', b: 10504, r: '42 проверки чистой логики. Гоняются без телефона и графики: python3 android-port/test_core.py.', f: ['12 наборов: строки, рамки, цвет, кегль, конвейер', 'Проверяется то, что ломается тихо: поворот, медиана, похожесть строк', 'Сетевой код проверяется по контракту ошибки', 'Запускаются в CI перед каждой сборкой'] },
+    { n: 'test_core.py', p: 'android-port/test_core.py', b: 10504, r: 'Проверки чистой логики. Гоняются без телефона и графики: python3 android-port/test_core.py.', f: ['Наборы: строки, рамки, цвет, кегль, конвейер, ретрай, кэш', 'Проверяется то, что ломается тихо: поворот, медиана, похожесть строк', 'Сетевой код проверяется по контракту ошибки через заглушку urlopen', 'Запускаются в CI перед каждой сборкой'] },
     { n: 'SPECS.md', p: 'android-port/SPECS.md', b: 28144, r: 'Спецификация порта, по которой написан код: константы, чистые функции, поведение конвейера. Написана методом чистой комнаты.', f: ['Раздел «Константы» — источник всех чисел в core.py', 'Раздел «Чистые функции» — контракт для тестов'] },
     { n: 'podstrochnik.py', p: 'desktop/podstrochnik.py', b: 22041, r: 'Десктопная версия на PySide6: та же идея на большом экране, собирается в пакеты для Windows и Linux.', f: ['Пакеты: exe, zip, AppImage, deb', 'Сборка целиком в GitHub Actions'] },
     { n: 'build.gradle.kts', p: 'android-port/build.gradle.kts', b: 2316, r: 'Конфигурация сборки Android-порта: Chaquopy, ML Kit, подпись из секретов CI.', f: ['Chaquopy 17.2.0, Python 3.14, staticProxy для main и service', 'minSdk 26, compileSdk и targetSdk 36', 'abiFilters только arm64-v8a', 'ML Kit text-recognition 16.0.1', 'Подпись PKCS12 из четырёх секретов'] }
@@ -1342,6 +1329,93 @@ html.deck-on.fx-motion .slide.in-up,html.deck-on.fx-motion .slide.in-down,html.d
     deckOn = false;
     for (var bk = 0; bk < N; bk++) { clearAnim(slides[bk]); slides[bk].classList.remove('is-active'); }
   }
+
+  /* ===== Динамические данные с GitHub ===== */
+  var GH_REPO = 'DmitryLegend/API_translator';
+  var CACHE_KEY = 'pod.github-data';
+  var CACHE_TTL = 3600000; // 1 час
+  var MONTHS_RU = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+
+  function applyData(data) {
+    if (data.testCount) {
+      document.querySelectorAll('[data-test-count]').forEach(function (el) {
+        el.textContent = String(data.testCount);
+      });
+    }
+    if (data.version) {
+      var v = data.version.replace(/^v/, '');
+      var vEl = document.getElementById('dlVersion');
+      if (vEl) vEl.textContent = v;
+      var btn1 = document.getElementById('dlBtn');
+      var btn2 = document.getElementById('dlBtn2');
+      var url = 'https://github.com/' + GH_REPO + '/releases/download/v' + v + '/app-release-python.apk';
+      if (btn1) btn1.setAttribute('href', url);
+      if (btn2) btn2.setAttribute('href', url);
+    }
+    if (data.size) {
+      var mb = (data.size / 1048576).toFixed(1).replace('.', ',') + ' МБ';
+      var s1 = document.getElementById('dlSize');
+      var s2 = document.getElementById('dlSize2');
+      if (s1) s1.textContent = mb;
+      if (s2) s2.textContent = mb;
+    }
+    if (data.date) {
+      var d = new Date(data.date);
+      var formatted = d.getDate() + ' ' + MONTHS_RU[d.getMonth()] + ' ' + d.getFullYear();
+      var d1 = document.getElementById('dlDate');
+      var d2 = document.getElementById('dlDate2');
+      if (d1) d1.textContent = formatted;
+      if (d2) d2.textContent = formatted;
+    }
+  }
+
+  async function loadDynamicData() {
+    var cache = null;
+    try { cache = JSON.parse(localStorage.getItem(CACHE_KEY)); } catch (e) {}
+    var now = Date.now();
+    if (cache && now - cache.ts < CACHE_TTL) {
+      applyData(cache.data);
+      return;
+    }
+    try {
+      var headers = { 'Accept': 'application/vnd.github.v3+json' };
+      var results = await Promise.all([
+        fetch('https://api.github.com/repos/' + GH_REPO + '/contents/android-port/test_core.py', { headers: headers }),
+        fetch('https://api.github.com/repos/' + GH_REPO + '/releases/latest', { headers: headers })
+      ]);
+      var testsRes = results[0];
+      var releaseRes = results[1];
+      var data = {};
+
+      if (testsRes.ok) {
+        var testsJson = await testsRes.json();
+        var content = testsJson.content || '';
+        var decoded = atob(content.replace(/\n/g, ''));
+        var matches = decoded.match(/^def test_/gm);
+        data.testCount = matches ? matches.length : 0;
+      }
+
+      if (releaseRes.ok) {
+        var rel = await releaseRes.json();
+        data.version = rel.tag_name || '';
+        var apk = null;
+        for (var i = 0; i < (rel.assets || []).length; i++) {
+          if (rel.assets[i].name.indexOf('app-release-python') >= 0) { apk = rel.assets[i]; break; }
+        }
+        if (apk) data.size = apk.size;
+        if (rel.published_at) data.date = rel.published_at;
+      }
+
+      if (data.testCount || data.version) {
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: now, data: data })); } catch (e) {}
+        applyData(data);
+      }
+    } catch (e) {
+      // GitHub API недоступен — остаются дефолтные значения
+    }
+  }
+
+  loadDynamicData();
 })();
 </script>
 </body>
