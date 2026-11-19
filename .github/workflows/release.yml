@@ -129,22 +129,20 @@ jobs:
             gh run download "$GITHUB_RUN_ID" -n "$n" -D release_files
           done
           ls -lh release_files
-      - name: Удалить старый релиз и тег
+      - name: Удалить старый релиз
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="${GITHUB_REF_NAME}"
-          # Удаляем релиз (если есть)
-          gh release delete "$tag" --yes 2>/dev/null || true
-          sleep 2
-          # Удаляем тег (если есть)
-          git tag -d "$tag" 2>/dev/null || true
-          git push --delete origin "$tag" 2>/dev/null || true
-          sleep 2
+          echo "Удаляем релиз $tag..."
+          gh release delete "$tag" --yes --cleanup-tag 2>&1 || echo "Релиз не найден, пропускаем"
+          sleep 3
       - name: Создать релиз со всеми файлами
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="${GITHUB_REF_NAME}"
           notes="Автоматическая сборка всех платформ: Android (APK), Windows (.exe, .zip), Linux (.deb, .AppImage). При первой установке удалите прежнюю сборку из черновиков — подпись у них разная."
+          echo "Создаём релиз $tag..."
           gh release create "$tag" release_files/* --title "Подстрочник $tag" --notes "$notes"
+          echo "Релиз создан успешно!"
