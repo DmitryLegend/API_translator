@@ -50,7 +50,6 @@ SERVICE_CLASS = "com.dmitrylegend.apitranslator.TranslateService"
 EXTRA_RESULT_CODE = "resultCode"
 EXTRA_RESULT_DATA = "resultData"
 
-
 def _first_language(block):
     """Язык первого элемента строки; назвать его распознаватель не обязан."""
     try:
@@ -59,7 +58,6 @@ def _first_language(block):
         )
     except BaseException:
         return None
-
 
 class StopCallback(static_proxy(MediaProjection.Callback)):
     """Пользователь нажал «остановить трансляцию» — гасим службу."""
@@ -72,7 +70,6 @@ class StopCallback(static_proxy(MediaProjection.Callback)):
     def onStop(self):
         Log.i(TAG, "Пользователь прекратил захват экрана")
         self._service.stopSelf()
-
 
 class TranslateService(
     static_proxy(Service, package="com.dmitrylegend.apitranslator")
@@ -277,12 +274,30 @@ class TranslateService(
             self._overlay.draw(items)
 
     def _sample_color(self, bitmap, box):
+        """Цвет фона вокруг рамки: один getPixels на блок вместо точки за точкой.
+
+        getPixel — нативный вызов на каждую точку; для полосы в пару тысяч
+        точек это тысячи переходов в JNI на кадр. Читается прямоугольник
+        вокруг рамки одним вызовом, дальше берём из массива по индексам.
+        Точки за кадром отбрасываются здесь же: в массив их просто нет.
+        """
         left, top, right, bottom = box
-        points = ring_points(left, top, right, bottom, SAMPLE_BAND_PX)
         w = bitmap.getWidth()
         h = bitmap.getHeight()
+        l = max(0, left - SAMPLE_BAND_PX)
+        t = max(0, top - SAMPLE_BAND_PX)
+        r = min(w, right + SAMPLE_BAND_PX + 1)
+        b = min(h, bottom + SAMPLE_BAND_PX + 1)
+        bw = r - l
+        bh = b - t
+        if bw <= 0 or bh <= 0:
+            return median_color([])
+        buf = jarray(jint)(bw * bh)
+        bitmap.getPixels(buf, 0, bw, l, t, bw, bh)
         samples = [
-            bitmap.getPixel(x, y) for x, y in points if 0 <= x < w and 0 <= y < h
+            buf[(y - t) * bw + (x - l)]
+            for x, y in ring_points(left, top, right, bottom, SAMPLE_BAND_PX)
+            if l <= x < r and t <= y < b
         ]
         return median_color(samples)
 
