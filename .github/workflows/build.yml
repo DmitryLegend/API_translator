@@ -1,9 +1,8 @@
 name: Build APK
 
 on:
-  push:
-    # Тег вида v1.0.4 собирает подписанный APK и выкладывает его в Releases.
-    tags: ['v*']
+  # Тег вида v1.0.4 собирает подписанный APK и выкладывает его в Releases.
+  tags: ['v*']
 
 permissions:
   # write, а не read: комментарий к коммиту через API GitHub относится к
@@ -37,13 +36,18 @@ jobs:
         # Подпись нельзя пропускать: без неё Android просто не поставит файл,
         # а узнать об этом можно только на телефоне. Ловим здесь.
         run: |
-          if [ -z "$RELEASE_KEYSTORE_BASE64" ] || [ -z "$RELEASE_KEY_PASSWORD" ]; then
-            echo "::error::Нет секретов подписи релиза (RELEASE_KEYSTORE_BASE64, RELEASE_KEY_PASSWORD)"
+          if [ -z "$RELEASE_KEYSTORE_BASE64" ] || [ -z "$RELEASE_KEYSTORE_PASSWORD" ]; then
+            echo "::error::Нет секретов подписи релиза (RELEASE_KEYSTORE_BASE64, RELEASE_KEYSTORE_PASSWORD)"
             exit 1
           fi
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+
+      - name: Убедиться, что в keys.py нет ключа
+        # Защита от случайного коммита настоящего ключа: в репозитории файл
+        # обязан быть пустой заготовкой, ключ приходит только из секрета.
+        run: grep -q 'DEEPL_KEY = ""' android-port/src/main/python/keys.py
 
       - name: Тесты и подписанная сборка
         run: |
@@ -86,7 +90,7 @@ jobs:
           tag="${GITHUB_REF_NAME}"
 
           # Имя файла задаём сами: у Gradle-проекта android-port другое имя
-          # корневого проекта, и файл назывался бы по-своему. Кotlin-версия
+          # корневого проекта, и файл назывался бы по-своему. Kotlin-версия
           # снята с выпуска; её файлы остались в релизах до v1.0.3 включительно.
           cp android-port/build/outputs/apk/release/*.apk app-release-python.apk
 
