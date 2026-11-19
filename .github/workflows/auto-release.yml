@@ -1,0 +1,61 @@
+name: Auto Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Тесты чистой логики
+        run: python3 android-port/test_core.py
+
+      - name: Убедиться, что в keys.py нет ключа
+        run: grep -q 'DEEPL_KEY = ""' android-port/src/main/python/keys.py
+
+      - name: Вшить ключ DeepL
+        run: printf 'DEEPL_KEY = "%s"\n' "$DEEPL_API_KEY" > android-port/src/main/python/keys.py
+        env:
+          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
+
+      - name: Сборка APK
+        run: ./gradlew -p android-port --no-daemon assembleDebug
+
+      - name: Выложить релиз
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          tag="${GITHUB_REF_NAME}"
+          apk=$(find android-port/build/outputs/apk/debug -name "*.apk" | head -n 1)
+          mv "$apk" app-release-python.apk
+
+          notes=$(printf '%b' \
+            'Скачайте `app-release-python.apk` и откройте на телефоне.\n\n' \
+            'Если раньше стояла сборка с другой подписью — удалите её перед установкой. Дальше версии обновляются штатно.\n\n' \
+            'Исходники — пункт **Source code** рядом с этим списком.\n')
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" app-release-python.apk --clobber
+          else
+            gh release create "$tag" app-release-python.apk \
+              --title "Подстрочник $tag" \
+              --notes "$notes"
+          fi
