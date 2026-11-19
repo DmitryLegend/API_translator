@@ -14,6 +14,13 @@ val ksAlias = providers.environmentVariable("RELEASE_KEY_ALIAS").orNull
 val keyPass = providers.environmentVariable("RELEASE_KEY_PASSWORD").orNull
 val signed = listOf(ksB64, ksPass, ksAlias, keyPass).none { it.isNullOrBlank() }
 
+// Версия берётся из тега: v1.0.4 → versionName 1.0.4, versionCode 10404.
+// Сборка по пушу в main помечается -dev, чтобы черновик отличался от релиза
+// и на телефоне, и в диагностике.
+val tag = providers.environmentVariable("GITHUB_REF_NAME").orNull.orEmpty()
+val ver = if (tag.startsWith("v")) tag.removePrefix("v") else "1.0.0"
+val vparts = (ver.split(".") + listOf("0", "0", "0")).take(3).map { it.toIntOrNull() ?: 0 }
+
 val keystore = if (signed) {
     val f = File(System.getProperty("java.io.tmpdir"), "release-keystore.p12")
     f.writeBytes(Base64.getDecoder().decode(ksB64))
@@ -31,8 +38,8 @@ android {
         applicationId = "com.dmitrylegend.apitranslator.python"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = vparts[0] * 10000 + vparts[1] * 100 + vparts[2]
+        versionName = if (tag.startsWith("v")) ver else "$ver-dev"
 
         ndk {
             abiFilters += listOf("arm64-v8a")
