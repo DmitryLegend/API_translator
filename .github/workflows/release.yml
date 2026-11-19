@@ -120,6 +120,7 @@ jobs:
     needs: [android, linux, windows]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Скачать все артефакты
         env:
           GH_TOKEN: ${{ github.token }}
