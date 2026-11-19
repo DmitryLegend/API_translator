@@ -31,6 +31,11 @@ jobs:
       - name: Тесты чистой логики
         run: python3 android-port/test_core.py
 
+      - name: Убедиться, что в keys.py нет ключа
+        # Защита от случайного коммита настоящего ключа: в репозитории файл
+        # обязан быть пустой заготовкой, ключ приходит только из секрета.
+        run: grep -q 'DEEPL_KEY = ""' android-port/src/main/python/keys.py
+
       - name: Вшить ключ DeepL в keys.py
         run: |
           if [ -z "$DEEPL_API_KEY" ]; then
@@ -66,7 +71,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               commit_sha: context.sha,
-              body: '### Сборка Python-версии упала\n\n```\n' + body + '\n```'
+              body: '### Сборка Python-версии упала\n\n```\n' + body + '\n```\n'
             })
 
       - uses: actions/upload-artifact@v4
