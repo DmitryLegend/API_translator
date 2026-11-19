@@ -125,17 +125,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p release_files
-          gh run download ${{ github.run_id }} -n android-apk -D release_files
-          gh run download ${{ github.run_id }} -n linux-files -D release_files
-          gh run download ${{ github.run_id }} -n windows-files -D release_files
+          for n in android-apk linux-files windows-files; do
+            gh run download "$GITHUB_RUN_ID" -n "$n" -D release_files
+          done
           ls -lh release_files
       - name: Опубликовать релиз со всеми файлами
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="${{ github.ref_name }}"
-          notes="Автоматическая сборка всех платформ. Android (APK), Windows (.exe, .zip), Linux (.deb, .AppImage)."
-          
-          # Пытаемся создать релиз, если он уже есть (например, создан вручную) - просто добавляем файлы
-          gh release create "$tag" release_files/* --title "Подстрочник $tag" --notes "$notes" || \
-          gh release upload "$tag" release_files/* --clobber
+          tag="${GITHUB_REF_NAME}"
+          notes="Автоматическая сборка всех платформ: Android (APK), Windows (.exe, .zip), Linux (.deb, .AppImage). При первой установке удалите прежнюю сборку из черновиков — подпись у них разная."
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" release_files/* --clobber
+          else
+            gh release create "$tag" release_files/* --title "Подстрочник $tag" --notes "$notes"
+          fi
