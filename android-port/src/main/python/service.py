@@ -50,6 +50,17 @@ SERVICE_CLASS = "com.dmitrylegend.apitranslator.TranslateService"
 EXTRA_RESULT_CODE = "resultCode"
 EXTRA_RESULT_DATA = "resultData"
 
+def _to_signed(color: int) -> int:
+    """ARGB из Python int в знаковое 32-битное число.
+
+    median_color отдаёт положительное число вроде 0xFF2E4A3C (4.2 млрд),
+    а Java int живёт до 2.1 млрд. Chaquopy тогда передаёт цвет как long,
+    Paint выбирает setColor(long), читает из старших битов ColorSpace ID
+    и падает с IllegalArgumentException. Приведённое к знаку число влезает
+    в int, и Java вызывает нормальное setColor(int).
+    """
+    return color - 0x100000000 if color > 0x7FFFFFFF else color
+
 def _first_language(block):
     """Язык первого элемента строки; назвать его распознаватель не обязан."""
     try:
@@ -291,7 +302,7 @@ class TranslateService(
         bw = r - l
         bh = b - t
         if bw <= 0 or bh <= 0:
-            return median_color([])
+            return _to_signed(median_color([]))
         buf = jarray(jint)(bw * bh)
         bitmap.getPixels(buf, 0, bw, l, t, bw, bh)
         samples = [
@@ -299,7 +310,7 @@ class TranslateService(
             for x, y in ring_points(left, top, right, bottom, SAMPLE_BAND_PX)
             if l <= x < r and t <= y < b
         ]
-        return median_color(samples)
+        return _to_signed(median_color(samples))
 
     def _ensure_capture(self):
         projection = self._projection
