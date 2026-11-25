@@ -232,17 +232,33 @@ class Recognizer:
 
         self.ocr = RapidOCR()
 
-    def read(self, image) -> list[tuple[tuple[int, int, int, int], str, float]]:
-        """Возвращает (рамка, текст, уверенность)."""
+        def read(self, image) -> list[tuple[tuple[int, int, int, int], str, float]]:
+        """Возвращает (рамка, текст, уверенность).
+
+        RapidOCR отдаёт пару (строки, замеры времени), а не сам список.
+        Цикл по этой паре клал в распаковку трёх переменных весь список
+        блоков — отсюда «too many values to unpack». Берём только первое.
+        """
+        raw = self.ocr(image)
+        if isinstance(raw, tuple):
+            raw = raw[0]
+        if raw is None:
+            return []
+        # Новый пакет rapidocr отдаёт объект с полями вместо списка троек.
+        if hasattr(raw, "boxes"):
+            detections = list(zip(raw.boxes, raw.txts, raw.scores))
+        else:
+            detections = raw
+
         out = []
-        for box, text, score in self.ocr(image) or []:
+        for det in detections:
+            box, text, score = det[0], det[1], float(det[2])
             if score < 0.5:
                 continue
             xs = [int(p[0]) for p in box]
             ys = [int(p[1]) for p in box]
             out.append(((min(xs), min(ys), max(xs), max(ys)), text, score))
         return out
-
 
 # --- Конвейер ----------------------------------------------------------------
 
