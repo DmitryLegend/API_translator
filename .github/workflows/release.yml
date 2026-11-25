@@ -1,16 +1,95 @@
-name: Полный релиз (Все платформы)
+name: Авто-релиз (все платформы)
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: auto-release
+  cancel-in-progress: false
+
 jobs:
+  version:
+    name: Определить версию
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      ver: ${{ steps.v.outputs.ver }}
+      level: ${{ steps.v.outputs.level }}
+      skip: ${{ steps.v.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: v
+        name: Посчитать следующий тег
+        run: |
+          set -e
+          git fetch --tags --force
+
+          # Не выпускаем повторно, если этот коммит уже помечен тегом.
+          if git tag --points-at HEAD | grep -q '^v'; then
+            echo "Коммит уже помечен тегом — релиз не нужен."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Ручной пропуск: добавь [skip release] в сообщение коммита.
+          if git log -1 --pretty=%B | grep -q '\[skip release\]'; then
+            echo "В коммите есть [skip release] — пропускаем."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          last=$(git tag -l 'v[0-9]*' | sort -V | tail -1)
+          if [ -z "$last" ]; then
+            echo "Тегов нет — стартуем с v1.0.5"
+            echo "tag=v1.0.5" >> "$GITHUB_OUTPUT"
+            echo "ver=1.0.5" >> "$GITHUB_OUTPUT"
+            echo "level=patch" >> "$GITHUB_OUTPUT"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Последний тег: $last"
+
+          files=$(git diff --name-only "$last"..HEAD)
+          echo "Изменённые файлы:"
+          echo "$files"
+
+          # --- ПРАВИЛА ВЕРСИОНИРОВАНИЯ (правь здесь) ---
+          MAJOR='^android-port/src/main/python/(core|service|overlay|keys|interop)\.py$|^android-port/build\.gradle\.kts$|^android-port/SPECS\.md$|^desktop/podstrochnik\.py$'
+          MINOR='^android-port/|^desktop/|^\.github/workflows/'
+          # ---------------------------------------------
+
+          if echo "$files" | grep -Eq "$MAJOR"; then
+            level=major
+          elif echo "$files" | grep -Eq "$MINOR"; then
+            level=minor
+          else
+            level=patch
+          fi
+
+          ver=${last#v}
+          IFS=. read -r MA MI PA <<< "$ver"
+          case "$level" in
+            major) MA=$((MA+1)); MI=0; PA=0 ;;
+            minor) MI=$((MI+1)); PA=0 ;;
+            patch) PA=$((PA+1)) ;;
+          esac
+
+          echo "Тип обновления: $level → v$MA.$MI.$PA"
+          echo "tag=v$MA.$MI.$PA" >> "$GITHUB_OUTPUT"
+          echo "ver=$MA.$MI.$PA" >> "$GITHUB_OUTPUT"
+          echo "level=$level" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
   android:
     name: Android (APK)
+    needs: version
+    if: needs.version.outputs.skip != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,13 +101,19 @@ jobs:
         with:
           python-version: '3.14'
       - uses: gradle/actions/setup-gradle@v4
-      - name: Тесты
+      - name: Тесты чистой логики
         run: python3 android-port/test_core.py
+      - name: Убедиться, что в keys.py нет ключа
+        run: grep -q 'DEEPL_KEY = ""' android-port/src/main/python/keys.py
       - name: Вшить ключ DeepL
         run: printf 'DEEPL_KEY = "%s"\n' "$DEEPL_API_KEY" > android-port/src/main/python/keys.py
         env:
           DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
       - name: Сборка APK
+        # Подсовываем тег как имя ref: build.gradle.kts берёт из него версию,
+        # иначе внутри APK оказалось бы 1.0.0-dev.
+        env:
+          GITHUB_REF_NAME: ${{ needs.version.outputs.tag }}
         run: ./gradlew -p android-port --no-daemon assembleDebug
       - name: Подготовить артефакт
         run: |
@@ -38,9 +123,12 @@ jobs:
         with:
           name: android-apk
           path: out/app-release-python.apk
+          if-no-files-found: error
 
   linux:
     name: Linux (.deb и .AppImage)
+    needs: version
+    if: needs.version.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -49,13 +137,13 @@ jobs:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: desktop/requirements.txt
-      - name: Системные библиотеки
+      - name: Системные библиотеки и зависимости
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq libgl1 libegl1 libglib2.0-0 libdbus-1-3 libxkbcommon0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 squashfs-tools
           python -m pip install --upgrade pip
           pip install -r desktop/requirements.txt pyinstaller
-      - name: Проверка и сборка
+      - name: Проверить логику строк и собрать
         run: |
           python desktop/test_lines.py
           pyinstaller --onefile --noconfirm --clean --name podstrochnik --distpath dist --workpath build desktop/podstrochnik.py
@@ -66,7 +154,7 @@ jobs:
           cp dist/podstrochnik pkg/usr/bin/podstrochnik
           cp desktop/podstrochnik.desktop pkg/usr/share/applications/
           size=$(du -sk pkg | cut -f1)
-          printf "Package: podstrochnik\nVersion: %s\nSection: utils\nPriority: optional\nArchitecture: amd64\nMaintainer: DmitryLegend\nInstalled-Size: %s\nDepends: libgl1, libglib2.0-0, libxkbcommon0, libxcb-cursor0, libxcb-icccm4, libxcb-keysyms1, libxcb-shape0, libdbus-1-3\nDescription: Перевод текста на экране\n" "${{ github.ref_name }}" "$size" > pkg/DEBIAN/control
+          printf "Package: podstrochnik\nVersion: %s\nSection: utils\nPriority: optional\nArchitecture: amd64\nMaintainer: DmitryLegend <dmitrylegend@users.noreply.github.com>\nInstalled-Size: %s\nDepends: libgl1, libglib2.0-0, libxkbcommon0, libxcb-cursor0, libxcb-icccm4, libxcb-keysyms1, libxcb-shape0, libdbus-1-3\nDescription: Перевод того, что сейчас на экране компьютера\n Захватывает экран, распознаёт текст и рисует перевод поверх.\n" "${{ needs.version.outputs.ver }}" "$size" > pkg/DEBIAN/control
           printf '2.0\n' > debian-binary
           tar czf control.tar.gz -C pkg/DEBIAN control
           tar czf data.tar.gz -C pkg usr
@@ -74,6 +162,7 @@ jobs:
           rm -f control.tar.gz data.tar.gz debian-binary
       - name: Собрать .AppImage
         run: |
+          set -e
           curl -fsSL -o /tmp/runtime https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
           rm -rf AppDir && mkdir -p AppDir/usr/bin AppDir/usr/share/applications
           cp dist/podstrochnik AppDir/usr/bin/
@@ -90,9 +179,12 @@ jobs:
           path: |
             dist/podstrochnik_amd64.deb
             dist/podstrochnik-x86_64.AppImage
+          if-no-files-found: error
 
   windows:
     name: Windows (.exe и .zip)
+    needs: version
+    if: needs.version.outputs.skip != 'true'
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
@@ -114,10 +206,12 @@ jobs:
           path: |
             dist/podstrochnik-win-x64.zip
             dist/podstrochnik.exe
+          if-no-files-found: error
 
   finalize:
-    name: Создание релиза
-    needs: [android, linux, windows]
+    name: Создать тег и релиз
+    needs: [version, android, linux, windows]
+    if: needs.version.outputs.skip != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -125,25 +219,31 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -e
           mkdir -p release_files
           for n in android-apk linux-files windows-files; do
-            gh run download "$GITHUB_RUN_ID" -n "$n" -D release_files
+            gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n "$n" -D release_files
           done
           ls -lh release_files
-      - name: Удалить старый релиз
+      - name: Создать тег и релиз со всеми файлами
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+          LEVEL: ${{ needs.version.outputs.level }}
         run: |
-          tag="${GITHUB_REF_NAME}"
-          echo "Удаляем релиз $tag..."
-          gh release delete "$tag" --yes --cleanup-tag 2>&1 || echo "Релиз не найден, пропускаем"
-          sleep 3
-      - name: Создать релиз со всеми файлами
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          tag="${GITHUB_REF_NAME}"
-          notes="Автоматическая сборка всех платформ: Android (APK), Windows (.exe, .zip), Linux (.deb, .AppImage). При первой установке удалите прежнюю сборку из черновиков — подпись у них разная."
-          echo "Создаём релиз $tag..."
-          gh release create "$tag" release_files/* --title "Подстрочник $tag" --notes "$notes"
-          echo "Релиз создан успешно!"
+          set -e
+          notes=$(printf '%b' \
+            "Тип обновления: **$LEVEL** (версия посчитана автоматически по изменённым файлам).\n\n" \
+            "Android — \`app-release-python.apk\`. Windows — \`.exe\` / \`.zip\`. Linux — \`.AppImage\` / \`.deb\`.\n\n" \
+            "Если раньше стояла сборка с другой подписью — удалите её перед установкой.\n\n" \
+            "Исходники — пункт **Source code** рядом с этим списком.\n")
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" release_files/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" release_files/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "Подстрочник $TAG" \
+              --notes "$notes"
+          fi
+          echo "Готово: $TAG"
