@@ -1,6 +1,7 @@
 package com.dmitrylegend.apitranslator
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -52,7 +53,7 @@ import androidx.compose.ui.unit.dp
 
 enum class RootTab { MENU, DEEPL, OVERLAY, THEME }
 
-class MainActivity : ComponentActivity() {
+class UiActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { AppRoot() }
@@ -69,6 +70,7 @@ fun AppRoot() {
     var dark by remember { mutableStateOf(prefs.getBoolean("dark", false)) }
     var overlayEnabled by remember { mutableStateOf(prefs.getBoolean("overlay", true)) }
     var deepLKey by remember { mutableStateOf(prefs.getString("deepl_key", "") ?: "") }
+    var errorText by remember { mutableStateOf("") }
 
     val accent = Color(accentArgb)
     val colorScheme = remember(accentArgb, dark) {
@@ -100,7 +102,18 @@ fun AppRoot() {
         ) { innerPadding ->
             Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
                 when (tab) {
-                    RootTab.MENU -> MainScreen(onNavigate = { tab = it })
+                    RootTab.MENU -> MainScreen(
+                        errorText = errorText,
+                        onNavigate = { tab = it },
+                        onStartTranslation = {
+                            try {
+                                val pythonActivity = Class.forName("com.dmitrylegend.apitranslator.MainActivity")
+                                context.startActivity(Intent(context, pythonActivity))
+                            } catch (e: ClassNotFoundException) {
+                                errorText = "Не удалось открыть экран перевода"
+                            }
+                        }
+                    )
                     RootTab.DEEPL -> DeepLScreen(
                         key = deepLKey,
                         onKeyChange = { deepLKey = it },
@@ -178,7 +191,7 @@ fun ScreenColumn(content: @Composable () -> Unit) {
 }
 
 @Composable
-fun MainScreen(onNavigate: (RootTab) -> Unit) {
+fun MainScreen(errorText: String, onNavigate: (RootTab) -> Unit, onStartTranslation: () -> Unit) {
     ScreenColumn {
         Spacer(Modifier.height(8.dp))
         Text("Подстрочник", style = MaterialTheme.typography.headlineMedium)
@@ -188,6 +201,12 @@ fun MainScreen(onNavigate: (RootTab) -> Unit) {
             color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(Modifier.height(8.dp))
+        Button(onClick = onStartTranslation, modifier = Modifier.fillMaxWidth()) {
+            Text("Запустить перевод")
+        }
+        if (errorText.isNotEmpty()) {
+            Text(errorText, color = MaterialTheme.colorScheme.error)
+        }
         Button(onClick = { onNavigate(RootTab.DEEPL) }, modifier = Modifier.fillMaxWidth()) {
             Text("Настройки DeepL")
         }

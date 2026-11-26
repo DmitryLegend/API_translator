@@ -12,14 +12,20 @@
         android:label="Подстрочник Py"
         android:icon="@android:drawable/sym_def_app_icon">
 
+        <!-- Новый Compose-экран — точка входа; экран перевода на Python
+             остаётся доступен по явному Intent из меню. -->
         <activity
-            android:name="com.dmitrylegend.apitranslator.MainActivity"
+            android:name="com.dmitrylegend.apitranslator.UiActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name="com.dmitrylegend.apitranslator.MainActivity"
+            android:exported="false" />
 
         <service
             android:name="com.dmitrylegend.apitranslator.TranslateService"
