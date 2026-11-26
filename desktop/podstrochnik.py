@@ -232,7 +232,7 @@ class Recognizer:
 
         self.ocr = RapidOCR()
 
-        def read(self, image) -> list[tuple[tuple[int, int, int, int], str, float]]:
+    def read(self, image) -> list[tuple[tuple[int, int, int, int], str, float]]:
         """Возвращает (рамка, текст, уверенность).
 
         RapidOCR отдаёт пару (строки, замеры времени), а не сам список.
@@ -431,7 +431,7 @@ def is_russian(s: str) -> bool:
     letters = [c for c in s if c.isalpha()]
     if len(letters) < 3:
         return False
-    cyr = sum("Ѐ" <= c <= "ӿ" for c in letters)
+    cyr = sum("\u0400" <= c <= "\u04ff" for c in letters)
     return cyr / len(letters) > 0.7
 
 
